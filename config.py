@@ -9,3 +9,5 @@ class AzureOpenAI:
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
     OPENAI_API_VERSION = "2025-01-01-preview"
     MODEL_NAME = "gpt-4.1-2025-04-14"
+    STT_MODEL_NAME = "Whisper-Large-v2"  # OpenAI's Whisper model for speech-to-text
+    TTS_VOICE_NAME = "en-US-JennyNeural"  # Azure T
