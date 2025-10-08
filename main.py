@@ -38,6 +38,7 @@ class AudioTranscriptionApp:
         print("   - The app records in 5-second chunks")
         print("   - Press Ctrl+C to stop and exit")
         print("   - Transcriptions are logged to 'transcriptions.log'")
+        print("   - 🌈 Transcriptions appear in BRIGHT COLORS below!")
         print()
     
     def signal_handler(self, signum, frame):
@@ -79,10 +80,6 @@ class AudioTranscriptionApp:
                     )
                 )
                 
-                # Debug: Show what we got from transcription
-                print(f"🔍 DEBUG: Transcription result: '{transcription}'")
-                print(f"🔍 DEBUG: Transcription type: {type(transcription)}")
-                
                 # Log the result
                 if transcription and transcription.strip():
                     self.logger.log_transcription(
@@ -120,10 +117,6 @@ class AudioTranscriptionApp:
             transcription = self.transcription_service.transcribe_audio_bytes(
                 audio_data
             )
-            
-            # Debug: Show what we got from transcription
-            print(f"🔍 DEBUG: Transcription result: '{transcription}'")
-            print(f"🔍 DEBUG: Transcription type: {type(transcription)}")
             
             # Log result
             self.logger.log_transcription(transcription, "single_recording")

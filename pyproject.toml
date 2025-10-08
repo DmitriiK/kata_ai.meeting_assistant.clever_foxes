@@ -13,4 +13,5 @@ dependencies = [
     "pytest>=8.4.2",
     "python-dotenv>=1.1.1",
     "sounddevice>=0.5.2",
+    "colorama>=0.4.6",
 ]
