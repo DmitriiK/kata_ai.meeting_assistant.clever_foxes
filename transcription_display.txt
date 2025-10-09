@@ -3,47 +3,62 @@
 Waiting for transcriptions...
 
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:46:19]:
-💬 Okay, let's go to be or not to be
-🎤 Source: chunk_1
+🎯 NEW TRANSCRIPTION [2025-10-09 19:25:42]:
+💬 in just the same way. LiveKit really is just another AI agent framework, but for building voice agents in particular. It's very, very cool. And so this function is the basic one in... BAM!
+🎤 Source: 🔊 SYSTEM_AUDIO
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:46:25]:
-💬 It's noble in the mind to suffer the slings and arrows of...
-🎤 Source: chunk_2
+🎯 NEW TRANSCRIPTION [2025-10-09 19:25:54]:
+💬 go ahead and save this asian go back over to my terminal and let's invoke it again and this time ask it what the current time is. Can you tell me what the current time is please? Current time is 4...
+🎤 Source: 🔊 SYSTEM_AUDIO
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:46:33]:
-💬 اعداً ا İnsز√ التي عقط في القصول
-🎤 Source: chunk_3
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:10]:
+💬 2025 is there alright that is looking really good you can see that it used the get current date and time function Just like we have defined in our python code and then
+🎤 Source: 🔊 SYSTEM_AUDIO
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:46:40]:
-💬 ...to die to sleep, no more and by a sleep to sail.
-🎤 Source: chunk_4
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:22]:
+💬 assistant that can help me with searching and booking. And so to keep it simple, I'll have mock data for a bunch of available Airbnb's and then I'll create one tool to search for Airbnb.
+🎤 Source: 🔊 SYSTEM_AUDIO
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:46:46]:
-💬 and the Southern natural shocks. The flesh is here.
-🎤 Source: chunk_5
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:33]:
+💬 Внимание!
+🎤 Source: 🎤 MICROPHONE
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:46:52]:
-💬 That's all.
-🎤 Source: chunk_6
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:34]:
+💬 the city that we're searching in. So the LLM will actually decide this parameter when it decides to invoke the search Airbnb's tool. And we specify the arguments in
+🎤 Source: 🔊 SYSTEM_AUDIO
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:46:58]:
-💬 А теперь я буду говорить по русски.
-🎤 Source: chunk_7
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:45]:
+💬 Внимание ты меня слышишь?
+🎤 Source: 🎤 MICROPHONE
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:47:04]:
-💬 Алло, отлично. Я вижу, что ты умеешь понимать.
-🎤 Source: chunk_8
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:46]:
+💬 included as a part of the prompt to our LiveKit agent. And again, this is just using a bunch of mock data here. And then I'll just add another tool so that we can actually book the Airbnb. And if
+🎤 Source: 🔊 SYSTEM_AUDIO
 ------------------------------------------------------------
 
-🎯 NEW TRANSCRIPTION [2025-10-08 19:47:46]:
-💬 1.5% 1.5%
-🎤 Source: chunk_15
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:57]:
+💬 Stop it, just stop it, go back over one door, let's unlock the magic of the...
+🎤 Source: 🎤 MICROPHONE
+------------------------------------------------------------
+
+🎯 NEW TRANSCRIPTION [2025-10-09 19:26:58]:
+💬 from our conversation, then it will clarify with us. So cool, I'm going to go ahead and save this. Go back over into our terminal and let's invoke our agent for the third time. Hi, welcome.
+🎤 Source: 🔊 SYSTEM_AUDIO
+------------------------------------------------------------
+
+🎯 NEW TRANSCRIPTION [2025-10-09 19:27:14]:
+💬 today. You do Airbnb in San Francisco really quickly here. You are three top Airbnb's in San Francisco. One.
+🎤 Source: 🔊 SYSTEM_AUDIO
+------------------------------------------------------------
+
+🎯 NEW TRANSCRIPTION [2025-10-09 19:27:31]:
+💬 1.5% 1.5% 2.5% 4.5% 4.5% 4.5% 4.5% 5.5% 4.5% 5.5% 6.5%
+🎤 Source: 🎤 MICROPHONE
 ------------------------------------------------------------

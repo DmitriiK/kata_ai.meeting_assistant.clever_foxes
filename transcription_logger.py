@@ -39,6 +39,7 @@ class TranscriptionLogger:
     ):
         """
         Log transcription result to both console and file.
+        Only logs when speech is detected (silent when no speech).
         
         Args:
             text: Transcribed text (None if transcription failed)
@@ -51,7 +52,8 @@ class TranscriptionLogger:
             log_entry = f"[{timestamp}] [{source}] {text}"
             
             # Highly visible colored console output
-            header = f"{Back.GREEN}{Fore.BLACK}🎯 TRANSCRIPTION RESULT {Style.RESET_ALL}"
+            header = (f"{Back.GREEN}{Fore.BLACK}🎯 TRANSCRIPTION RESULT "
+                      f"{Style.RESET_ALL}")
             print(f"\n{header}")
             
             speech_label = f"{Back.CYAN}{Fore.BLACK} 💬 SPEECH TEXT: "
@@ -68,38 +70,13 @@ class TranscriptionLogger:
             with open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(f"{log_entry}\n")
             
-            # Write to live display file (formatted for separate terminal)
+            # Write to live display file (formatted)
             with open(self.display_file, 'a', encoding='utf-8') as f:
                 f.write(f"\n🎯 NEW TRANSCRIPTION [{timestamp}]:\n")
                 f.write(f"💬 {text}\n")
                 f.write(f"🎤 Source: {source}\n")
                 f.write("-" * 60 + "\n")
-        else:
-            # Failed transcription
-            error_entry = f"[{timestamp}] [{source}] ❌ Transcription failed"
-            
-            # Colored failure output
-            fail_label = f"{Back.RED}{Fore.WHITE}🚫 TRANSCRIPTION FAILED "
-            print(f"\n{fail_label}{Style.RESET_ALL}")
-            
-            error_msg = "❌ No speech detected or transcription error"
-            print(f"{Fore.RED}{error_msg}{Style.RESET_ALL}")
-            
-            time_label = f"{Fore.YELLOW}⏰ {timestamp} | 🎤 {source}"
-            print(f"{time_label}{Style.RESET_ALL}")
-            
-            print(f"{Fore.RED}{'-' * 50}{Style.RESET_ALL}")
-            
-            # Write to main log file
-            with open(self.log_file, 'a', encoding='utf-8') as f:
-                f.write(f"{error_entry}\n")
-            
-            # Write to live display file
-            with open(self.display_file, 'a', encoding='utf-8') as f:
-                f.write(f"\n🚫 FAILED TRANSCRIPTION [{timestamp}]:\n")
-                f.write("❌ No speech detected or transcription error\n")
-                f.write(f"🎤 Source: {source}\n")
-                f.write("-" * 60 + "\n")
+        # If no text, do nothing (silent mode)
     
     def log_info(self, message: str):
         """

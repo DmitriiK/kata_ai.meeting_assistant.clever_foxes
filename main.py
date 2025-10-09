@@ -129,38 +129,197 @@ class AudioTranscriptionApp:
             print(f"❌ {error_msg}")
         finally:
             self.recorder.cleanup()
+    
+    def show_audio_devices(self):
+        """Show available audio input devices."""
+        self.recorder.print_audio_devices()
+        
+        # Check for virtual audio devices
+        devices = self.recorder.list_audio_devices()
+        virtual_keywords = ['blackhole', 'voicemeeter', 'vb-cable', 'loopback']
+        has_virtual_audio = any(
+            any(keyword in device['name'].lower()
+                for keyword in virtual_keywords)
+            for device in devices
+        )
+        
+        print("\n💡 For meeting mode, you'll need:")
+        print("   - Microphone device (your voice)")
+        print("   - Virtual audio device (system/meeting audio)")
+        
+        if not has_virtual_audio:
+            print("\n🚨 No virtual audio device detected!")
+            print("📥 Recommended cross-platform solution:")
+            print("   🌐 VB-Audio VoiceMeeter (Free)")
+            print("   📂 Download: https://vb-audio.com/Voicemeeter/")
+            print("   ✅ Works on Windows, Mac, and Linux")
+            print("\n🔧 Alternative options:")
+            print("   🍎 Mac: BlackHole (https://github.com/ExistentialAudio/BlackHole)")
+            print("   🪟 Windows: VB-Cable (https://vb-audio.com/Cable/)")
+        else:
+            print("✅ Virtual audio device detected - you're ready for meeting mode!")
+        
+        print("\n🔄 Returning to main menu...\n")
+        
+    def run_meeting_mode(self, duration: float = 10.0):
+        """
+        Record from both microphone and system audio for meeting transcription.
+        
+        Args:
+            duration: Duration to record in seconds
+        """
+        print("🎭 MEETING MODE - Dual Audio Source Recording")
+        print("=" * 50)
+        
+        # Show available devices
+        devices = self.recorder.list_audio_devices()
+        print("Available audio devices:")
+        for device in devices:
+            print(f"  [{device['index']}] {device['name']}")
+        
+        try:
+            # Get device selections
+            print("\n🎤 Select microphone device:")
+            mic_prompt = "Enter device number (or press Enter for default): "
+            mic_choice = input(mic_prompt).strip()
+            mic_device = int(mic_choice) if mic_choice else None
+            
+            print("\n🔊 Select system audio device:")
+            print("   (For Zoom/Teams audio - may need virtual audio cable)")
+            sys_prompt = "Enter device number (or press Enter to skip): "
+            sys_choice = input(sys_prompt).strip()
+            sys_device = int(sys_choice) if sys_choice else None
+            
+            if sys_device is None:
+                print("\n⚠️  System audio disabled. Only microphone recorded.")
+                print("   To capture meeting audio, install BlackHole")
+            
+            self.logger.log_info(f"Starting meeting mode ({duration}s)")
+            print(f"\n🎤 Recording from both sources for {duration} seconds...")
+            print("🔊 Start your meeting audio now!\n")
+            
+            # Record from both sources
+            mic_audio, system_audio = self.recorder.record_dual_sources(
+                duration, mic_device, sys_device
+            )
+            
+            # Transcribe microphone audio
+            if mic_audio:
+                print("🤖 Transcribing microphone audio...")
+                mic_transcription = self.transcription_service.transcribe_audio_bytes(
+                    mic_audio
+                )
+                self.logger.log_transcription(mic_transcription, "🎤 MICROPHONE")
+            
+            # Transcribe system audio  
+            if system_audio and len(system_audio) > 1000:  # Check if we got audio
+                print("🤖 Transcribing system audio...")
+                sys_transcription = self.transcription_service.transcribe_audio_bytes(
+                    system_audio
+                )
+                self.logger.log_transcription(sys_transcription, "🔊 SYSTEM_AUDIO")
+            else:
+                print("🔇 No system audio captured")
+                
+            print("\n✅ Meeting transcription complete!")
+            
+        except ValueError:
+            print("❌ Invalid device number")
+        except Exception as e:
+            error_msg = f"Meeting mode error: {e}"
+            self.logger.log_error(error_msg)
+            print(f"❌ {error_msg}")
+        finally:
+            self.recorder.cleanup()
 
 
 def main():
     """Main application entry point."""
     app = AudioTranscriptionApp()
     
-    # Simple menu
-    print("Select mode:")
-    print("1. Continuous transcription (5-second chunks)")
-    print("2. Single transcription (10 seconds)")
-    print("3. Exit")
+    # Show available devices
+    print("\n🔧 Detecting audio devices...")
+    devices = app.recorder.list_audio_devices()
+    
+    # Auto-detect microphone
+    mic_device = None
+    for device in devices:
+        if device['is_default_input'] and device['can_record']:
+            mic_device = device['index']
+            print(f"🎤 Microphone: [{device['index']}] {device['name']}")
+            break
+    
+    # Auto-detect system audio (look for BlackHole or similar)
+    sys_device = None
+    virtual_keywords = ['blackhole', 'voicemeeter', 'vb-cable', 'loopback']
+    for device in devices:
+        device_name_lower = device['name'].lower()
+        if (any(keyword in device_name_lower for keyword in virtual_keywords)
+                and device['can_record']):
+            sys_device = device['index']
+            print(f"🔊 System Audio: [{device['index']}] {device['name']}")
+            break
+    
+    if sys_device is None:
+        print("⚠️  No virtual audio device detected!")
+        print("   Only microphone will be captured.")
+        print("   Install BlackHole for full meeting transcription.")
+        print("   Download: https://github.com/ExistentialAudio/BlackHole")
+    
+    print("\n" + "=" * 60)
+    print("🎙️  CONTINUOUS DUAL AUDIO TRANSCRIPTION")
+    print("=" * 60)
+    print("📝 Recording both microphone and system audio")
+    print("⏱️  10-second chunks with continuous transcription")
+    print("🛑 Press Ctrl+C to stop")
+    print("=" * 60 + "\n")
     
     try:
-        choice = input("\nEnter your choice (1-3): ").strip()
+        chunk_count = 0
+        duration = 10.0
         
-        if choice == "1":
-            app.run_continuous_transcription()
-        elif choice == "2":
-            app.run_single_transcription()
-        elif choice == "3":
-            print("👋 Goodbye!")
-            sys.exit(0)
-        else:
-            print("❌ Invalid choice. Exiting.")
-            sys.exit(1)
+        while True:
+            chunk_count += 1
+            print(f"\n{'=' * 60}")
+            print(f"🎬 Chunk #{chunk_count} - Recording {duration}s...")
+            print(f"{'=' * 60}")
+            
+            # Record from both sources
+            mic_audio, system_audio = app.recorder.record_dual_sources(
+                duration, mic_device, sys_device
+            )
+            
+            # Transcribe microphone audio
+            if mic_audio and len(mic_audio) > 1000:
+                print("🤖 Transcribing microphone audio...")
+                mic_transcription = (
+                    app.transcription_service.transcribe_audio_bytes(mic_audio)
+                )
+                app.logger.log_transcription(mic_transcription, "🎤 MICROPHONE")
+            
+            # Transcribe system audio
+            if system_audio and len(system_audio) > 1000:
+                print("🤖 Transcribing system audio...")
+                sys_transcription = (
+                    app.transcription_service.transcribe_audio_bytes(
+                        system_audio
+                    )
+                )
+                app.logger.log_transcription(
+                    sys_transcription, "🔊 SYSTEM_AUDIO"
+                )
             
     except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
-        sys.exit(0)
+        print("\n\n� Stopping application...")
+        app.logger.log_info("Application stopped by user")
+        print("👋 Goodbye!")
     except Exception as e:
-        print(f"❌ Error: {e}")
-        sys.exit(1)
+        error_msg = f"Error: {e}"
+        app.logger.log_error(error_msg)
+        print(f"❌ {error_msg}")
+    finally:
+        app.recorder.cleanup()
+        sys.exit(0)
 
 
 if __name__ == "__main__":
