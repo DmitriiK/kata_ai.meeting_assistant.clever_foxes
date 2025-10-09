@@ -20,19 +20,26 @@ class TranscriptionLogger:
             log_file: Path to log file
         """
         self.log_file = log_file
-        self.display_file = "transcription_display.txt"
         
         # Create log file if it doesn't exist
         if not os.path.exists(log_file):
             with open(log_file, 'w') as f:
                 start_time = datetime.datetime.now()
                 f.write(f"=== Transcription Log Started at {start_time} ===\n")
+    
+    def log_interim_result(self, text: str, source: str = "microphone"):
+        """
+        Log interim/partial transcription result (console only).
+        Shows what's being recognized in real-time as user speaks.
         
-        # Create/clear the live display file
-        with open(self.display_file, 'w') as f:
-            f.write("🎤 LIVE TRANSCRIPTION DISPLAY 🎤\n")
-            f.write("=" * 50 + "\n")
-            f.write("Waiting for transcriptions...\n\n")
+        Args:
+            text: Partial transcribed text
+            source: Source of the audio
+        """
+        if text:
+            # Show interim result on console only (not in log file)
+            interim_label = f"{Fore.YELLOW}⚡ [INTERIM] [{source}]"
+            print(f"\r{interim_label} {text}{Style.RESET_ALL}", end="")
     
     def log_transcription(
         self, text: Optional[str], source: str = "microphone"
@@ -48,6 +55,9 @@ class TranscriptionLogger:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         if text:
+            # Clear any interim result line
+            print("\r" + " " * 100 + "\r", end="")
+            
             # Successful transcription - enhanced console output
             log_entry = f"[{timestamp}] [{source}] {text}"
             
@@ -69,13 +79,6 @@ class TranscriptionLogger:
             # Write to main log file (simple format)
             with open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(f"{log_entry}\n")
-            
-            # Write to live display file (formatted)
-            with open(self.display_file, 'a', encoding='utf-8') as f:
-                f.write(f"\n🎯 NEW TRANSCRIPTION [{timestamp}]:\n")
-                f.write(f"💬 {text}\n")
-                f.write(f"🎤 Source: {source}\n")
-                f.write("-" * 60 + "\n")
         # If no text, do nothing (silent mode)
     
     def log_info(self, message: str):

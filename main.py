@@ -1,325 +1,271 @@
 #!/usr/bin/env python3
 """
-Simple Audio Transcription Application
+Streaming Audio Transcription Application
 
-Captures audio from microphone, transcribes it using Whisper,
-and logs results to console and file.
+Real-time continuous transcription using Azure Speech Service streaming API.
+No chunking delays - transcribes as you speak!
 
 Usage:
-    python main.py
+    python main_streaming.py
 
 Controls:
-    - Press Ctrl+C to stop recording and exit
-    - The app records in 5-second chunks and transcribes each chunk
+    - Press Ctrl+C to stop and exit
 """
 import signal
 import sys
-from audio_recorder import AudioRecorder
-from transcription_service import TranscriptionService
+import pyaudio
+import time
+from azure_speech_service import AzureSpeechTranscriber
 from transcription_logger import TranscriptionLogger
+from vad_detector import VADDetector
+from config import AudioSettings, LogSettings, VADSettings
+from audio_recorder import AudioRecorder
 
 
-class AudioTranscriptionApp:
+class StreamingTranscriptionApp:
     def __init__(self):
-        """Initialize the application components."""
-        print("🚀 Initializing Audio Transcription App...")
+        """Initialize the streaming application."""
+        print("🚀 Initializing Streaming Transcription App...")
         
         # Initialize components
-        self.recorder = AudioRecorder(sample_rate=16000, chunk_size=1024)
-        self.transcription_service = TranscriptionService(model_size="base")
-        self.logger = TranscriptionLogger()
+        self.logger = TranscriptionLogger(log_file=LogSettings.LOG_FILE)
+        self.vad = VADDetector(
+            sample_rate=AudioSettings.SAMPLE_RATE,
+            aggressiveness=VADSettings.AGGRESSIVENESS
+        )
         
-        # Set up signal handler for graceful shutdown
+        # Initialize audio
+        self.audio = pyaudio.PyAudio()
+        self.sample_rate = AudioSettings.SAMPLE_RATE
+        self.chunk_size = AudioSettings.CHUNK_SIZE
+        
+        # Azure Speech Service instances for each source
+        self.mic_transcriber = None
+        self.sys_transcriber = None
+        
+        # Audio streams
+        self.mic_stream = None
+        self.sys_stream = None
+        self.mic_recognizer = None
+        self.sys_recognizer = None
+        
+        # Control flags
+        self.is_running = False
+        
+        # Set up signal handler
         signal.signal(signal.SIGINT, self.signal_handler)
         
-        print("✅ Application initialized successfully!")
-        print("📋 Instructions:")
-        print("   - Speak into your microphone")
-        print("   - The app records in 5-second chunks")
-        print("   - Press Ctrl+C to stop and exit")
-        print("   - Transcriptions are logged to 'transcriptions.log'")
-        print("   - 🌈 Transcriptions appear in BRIGHT COLORS below!")
+        print("✅ Streaming transcription service initialized")
+        print("   📍 Local VAD for speech detection")
+        print("   ☁️  Azure Speech Service in streaming mode")
+        print("   ⚡ Real-time transcription with minimal delay!")
         print()
     
     def signal_handler(self, signum, frame):
         """Handle Ctrl+C gracefully."""
         print("\n🛑 Stopping application...")
-        self.logger.log_info("Application stopped by user")
-        self.recorder.cleanup()
+        self.is_running = False
+        self.cleanup()
         sys.exit(0)
     
-    def run_continuous_transcription(self, chunk_duration: float = 5.0):
+    def result_callback(self, text: str, source: str):
         """
-        Run continuous transcription in chunks.
+        Callback for final transcription results.
         
         Args:
-            chunk_duration: Duration of each recording chunk in seconds
+            text: Transcribed text
+            source: Audio source label
         """
-        self.logger.log_info("Starting continuous transcription")
-        duration_str = f"{chunk_duration}s"
-        print(f"🎤 Starting continuous recording in {duration_str} chunks...")
-        print("🔊 Speak now! (Press Ctrl+C to stop)\n")
-        
-        chunk_count = 0
-        
-        try:
-            while True:
-                chunk_count += 1
-                print(f"📹 Recording chunk #{chunk_count}...")
-                
-                # Record audio chunk
-                audio_data = self.recorder.record_fixed_duration(
-                    chunk_duration
-                )
-                
-                # Transcribe the audio
-                print("🤖 Transcribing...")
-                transcription = (
-                    self.transcription_service.transcribe_audio_bytes(
-                        audio_data
-                    )
-                )
-                
-                # Log the result
-                if transcription and transcription.strip():
-                    self.logger.log_transcription(
-                        transcription, f"chunk_{chunk_count}"
-                    )
-                else:
-                    print("🔇 No speech detected in this chunk")
-                
-                print("-" * 50)
-                
-        except KeyboardInterrupt:
-            self.signal_handler(None, None)
-        except Exception as e:
-            error_msg = f"Unexpected error: {e}"
-            self.logger.log_error(error_msg)
-            print(f"❌ {error_msg}")
+        if text and text.strip():
+            self.logger.log_transcription(text, source)
     
-    def run_single_transcription(self, duration: float = 10.0):
+    def interim_callback(self, text: str, source: str):
         """
-        Record and transcribe a single audio clip.
+        Callback for interim/partial transcription results.
+        Shows what's being transcribed in real-time.
         
         Args:
-            duration: Duration to record in seconds
+            text: Partial transcribed text
+            source: Audio source label
         """
-        self.logger.log_info(f"Starting single transcription ({duration}s)")
-        print(f"🎤 Recording for {duration} seconds...")
-        print("🔊 Speak now!\n")
-        
-        try:
-            # Record audio
-            audio_data = self.recorder.record_fixed_duration(duration)
-            
-            # Transcribe
-            print("🤖 Transcribing...")
-            transcription = self.transcription_service.transcribe_audio_bytes(
-                audio_data
-            )
-            
-            # Log result
-            self.logger.log_transcription(transcription, "single_recording")
-            
-            print("\n✅ Transcription complete!")
-            
-        except Exception as e:
-            error_msg = f"Error during transcription: {e}"
-            self.logger.log_error(error_msg)
-            print(f"❌ {error_msg}")
-        finally:
-            self.recorder.cleanup()
+        if text and text.strip():
+            self.logger.log_interim_result(text, source)
     
-    def show_audio_devices(self):
-        """Show available audio input devices."""
-        self.recorder.print_audio_devices()
+    def audio_callback_mic(self, in_data, frame_count, time_info, status):
+        """Callback for microphone audio stream."""
+        if self.is_running and self.mic_stream:
+            # Check for speech with VAD
+            if self.vad.detect_speech_in_chunk(in_data):
+                # Push to Azure Speech Service
+                self.mic_stream.write(in_data)
         
-        # Check for virtual audio devices
-        devices = self.recorder.list_audio_devices()
-        virtual_keywords = ['blackhole', 'voicemeeter', 'vb-cable', 'loopback']
-        has_virtual_audio = any(
-            any(keyword in device['name'].lower()
-                for keyword in virtual_keywords)
-            for device in devices
+        return (in_data, pyaudio.paContinue)
+    
+    def audio_callback_sys(self, in_data, frame_count, time_info, status):
+        """Callback for system audio stream."""
+        if self.is_running and self.sys_stream:
+            # Check for speech with VAD
+            if self.vad.detect_speech_in_chunk(in_data):
+                # Push to Azure Speech Service
+                self.sys_stream.write(in_data)
+        
+        return (in_data, pyaudio.paContinue)
+    
+    def run(self):
+        """Run streaming transcription."""
+        # Detect audio devices
+        recorder = AudioRecorder(
+            sample_rate=self.sample_rate,
+            chunk_size=self.chunk_size
         )
+        devices = recorder.list_audio_devices()
         
-        print("\n💡 For meeting mode, you'll need:")
-        print("   - Microphone device (your voice)")
-        print("   - Virtual audio device (system/meeting audio)")
+        print("\n🔧 Detecting audio devices...")
         
-        if not has_virtual_audio:
-            print("\n🚨 No virtual audio device detected!")
-            print("📥 Recommended cross-platform solution:")
-            print("   🌐 VB-Audio VoiceMeeter (Free)")
-            print("   📂 Download: https://vb-audio.com/Voicemeeter/")
-            print("   ✅ Works on Windows, Mac, and Linux")
-            print("\n🔧 Alternative options:")
-            print("   🍎 Mac: BlackHole (https://github.com/ExistentialAudio/BlackHole)")
-            print("   🪟 Windows: VB-Cable (https://vb-audio.com/Cable/)")
-        else:
-            print("✅ Virtual audio device detected - you're ready for meeting mode!")
-        
-        print("\n🔄 Returning to main menu...\n")
-        
-    def run_meeting_mode(self, duration: float = 10.0):
-        """
-        Record from both microphone and system audio for meeting transcription.
-        
-        Args:
-            duration: Duration to record in seconds
-        """
-        print("🎭 MEETING MODE - Dual Audio Source Recording")
-        print("=" * 50)
-        
-        # Show available devices
-        devices = self.recorder.list_audio_devices()
-        print("Available audio devices:")
+        # Find microphone
+        mic_device = None
         for device in devices:
-            print(f"  [{device['index']}] {device['name']}")
+            if device['is_default_input'] and device['can_record']:
+                mic_device = device['index']
+                print(f"🎤 Microphone: [{device['index']}] {device['name']}")
+                break
+        
+        # Find system audio device
+        sys_device = None
+        virtual_keywords = [
+            'blackhole', 'voicemeeter', 'vb-cable', 'loopback'
+        ]
+        for device in devices:
+            device_name_lower = device['name'].lower()
+            has_keyword = any(
+                keyword in device_name_lower
+                for keyword in virtual_keywords
+            )
+            if has_keyword and device['can_record']:
+                sys_device = device['index']
+                sys_name = device['name']
+                print(f"🔊 System Audio: [{device['index']}] {sys_name}")
+                break
+        
+        if sys_device is None:
+            print("⚠️  No virtual audio device detected!")
+            print("   Only microphone will be captured.")
+        
+        # Initialize Azure transcribers with callbacks
+        print("\n🎙️  Starting streaming recognition...")
+        
+        if mic_device is not None:
+            self.mic_transcriber = AzureSpeechTranscriber()
+            self.mic_stream, self.mic_recognizer = (
+                self.mic_transcriber.start_continuous_recognition(
+                    source_label="🎤 MICROPHONE",
+                    result_callback=self.result_callback,
+                    interim_callback=(
+                        self.interim_callback
+                        if LogSettings.SHOW_INTERIM_RESULTS else None
+                    )
+                )
+            )
+        
+        if sys_device is not None:
+            self.sys_transcriber = AzureSpeechTranscriber()
+            self.sys_stream, self.sys_recognizer = (
+                self.sys_transcriber.start_continuous_recognition(
+                    source_label="🔊 SYSTEM_AUDIO",
+                    result_callback=self.result_callback,
+                    interim_callback=(
+                        self.interim_callback
+                        if LogSettings.SHOW_INTERIM_RESULTS else None
+                    )
+                )
+            )
+        
+        # Start audio streams
+        self.is_running = True
+        
+        print("\n" + "=" * 60)
+        print("🎙️  LIVE STREAMING TRANSCRIPTION")
+        print("=" * 60)
+        print("📝 Real-time transcription from microphone and system audio")
+        print("⚡ No chunking delays - transcribes as you speak!")
+        print("🛑 Press Ctrl+C to stop")
+        print("=" * 60 + "\n")
+        
+        # Open PyAudio streams
+        mic_audio_stream = None
+        sys_audio_stream = None
         
         try:
-            # Get device selections
-            print("\n🎤 Select microphone device:")
-            mic_prompt = "Enter device number (or press Enter for default): "
-            mic_choice = input(mic_prompt).strip()
-            mic_device = int(mic_choice) if mic_choice else None
-            
-            print("\n🔊 Select system audio device:")
-            print("   (For Zoom/Teams audio - may need virtual audio cable)")
-            sys_prompt = "Enter device number (or press Enter to skip): "
-            sys_choice = input(sys_prompt).strip()
-            sys_device = int(sys_choice) if sys_choice else None
-            
-            if sys_device is None:
-                print("\n⚠️  System audio disabled. Only microphone recorded.")
-                print("   To capture meeting audio, install BlackHole")
-            
-            self.logger.log_info(f"Starting meeting mode ({duration}s)")
-            print(f"\n🎤 Recording from both sources for {duration} seconds...")
-            print("🔊 Start your meeting audio now!\n")
-            
-            # Record from both sources
-            mic_audio, system_audio = self.recorder.record_dual_sources(
-                duration, mic_device, sys_device
-            )
-            
-            # Transcribe microphone audio
-            if mic_audio:
-                print("🤖 Transcribing microphone audio...")
-                mic_transcription = self.transcription_service.transcribe_audio_bytes(
-                    mic_audio
+            if mic_device is not None and self.mic_stream:
+                mic_audio_stream = self.audio.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=self.sample_rate,
+                    input=True,
+                    input_device_index=mic_device,
+                    frames_per_buffer=self.chunk_size,
+                    stream_callback=self.audio_callback_mic
                 )
-                self.logger.log_transcription(mic_transcription, "🎤 MICROPHONE")
+                mic_audio_stream.start_stream()
+                print("✅ Microphone streaming active")
             
-            # Transcribe system audio  
-            if system_audio and len(system_audio) > 1000:  # Check if we got audio
-                print("🤖 Transcribing system audio...")
-                sys_transcription = self.transcription_service.transcribe_audio_bytes(
-                    system_audio
+            if sys_device is not None and self.sys_stream:
+                sys_audio_stream = self.audio.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=self.sample_rate,
+                    input=True,
+                    input_device_index=sys_device,
+                    frames_per_buffer=self.chunk_size,
+                    stream_callback=self.audio_callback_sys
                 )
-                self.logger.log_transcription(sys_transcription, "🔊 SYSTEM_AUDIO")
-            else:
-                print("🔇 No system audio captured")
+                sys_audio_stream.start_stream()
+                print("✅ System audio streaming active")
+            
+            print("\n🎤 Listening... Speak now!\n")
+            
+            # Keep running until interrupted
+            while self.is_running:
+                time.sleep(0.1)
                 
-            print("\n✅ Meeting transcription complete!")
-            
-        except ValueError:
-            print("❌ Invalid device number")
         except Exception as e:
-            error_msg = f"Meeting mode error: {e}"
-            self.logger.log_error(error_msg)
-            print(f"❌ {error_msg}")
+            print(f"❌ Error: {e}")
         finally:
-            self.recorder.cleanup()
+            # Stop streams
+            if mic_audio_stream:
+                mic_audio_stream.stop_stream()
+                mic_audio_stream.close()
+            if sys_audio_stream:
+                sys_audio_stream.stop_stream()
+                sys_audio_stream.close()
+            
+            self.cleanup()
+    
+    def cleanup(self):
+        """Clean up resources."""
+        print("🧹 Cleaning up...")
+        
+        if self.mic_transcriber and self.mic_recognizer:
+            self.mic_transcriber.stop_continuous_recognition(
+                self.mic_recognizer
+            )
+        
+        if self.sys_transcriber and self.sys_recognizer:
+            self.sys_transcriber.stop_continuous_recognition(
+                self.sys_recognizer
+            )
+        
+        if self.audio:
+            self.audio.terminate()
+        
+        self.logger.log_info("Application stopped")
+        print("👋 Goodbye!")
 
 
 def main():
-    """Main application entry point."""
-    app = AudioTranscriptionApp()
-    
-    # Show available devices
-    print("\n🔧 Detecting audio devices...")
-    devices = app.recorder.list_audio_devices()
-    
-    # Auto-detect microphone
-    mic_device = None
-    for device in devices:
-        if device['is_default_input'] and device['can_record']:
-            mic_device = device['index']
-            print(f"🎤 Microphone: [{device['index']}] {device['name']}")
-            break
-    
-    # Auto-detect system audio (look for BlackHole or similar)
-    sys_device = None
-    virtual_keywords = ['blackhole', 'voicemeeter', 'vb-cable', 'loopback']
-    for device in devices:
-        device_name_lower = device['name'].lower()
-        if (any(keyword in device_name_lower for keyword in virtual_keywords)
-                and device['can_record']):
-            sys_device = device['index']
-            print(f"🔊 System Audio: [{device['index']}] {device['name']}")
-            break
-    
-    if sys_device is None:
-        print("⚠️  No virtual audio device detected!")
-        print("   Only microphone will be captured.")
-        print("   Install BlackHole for full meeting transcription.")
-        print("   Download: https://github.com/ExistentialAudio/BlackHole")
-    
-    print("\n" + "=" * 60)
-    print("🎙️  CONTINUOUS DUAL AUDIO TRANSCRIPTION")
-    print("=" * 60)
-    print("📝 Recording both microphone and system audio")
-    print("⏱️  10-second chunks with continuous transcription")
-    print("🛑 Press Ctrl+C to stop")
-    print("=" * 60 + "\n")
-    
-    try:
-        chunk_count = 0
-        duration = 10.0
-        
-        while True:
-            chunk_count += 1
-            print(f"\n{'=' * 60}")
-            print(f"🎬 Chunk #{chunk_count} - Recording {duration}s...")
-            print(f"{'=' * 60}")
-            
-            # Record from both sources
-            mic_audio, system_audio = app.recorder.record_dual_sources(
-                duration, mic_device, sys_device
-            )
-            
-            # Transcribe microphone audio
-            if mic_audio and len(mic_audio) > 1000:
-                print("🤖 Transcribing microphone audio...")
-                mic_transcription = (
-                    app.transcription_service.transcribe_audio_bytes(mic_audio)
-                )
-                app.logger.log_transcription(mic_transcription, "🎤 MICROPHONE")
-            
-            # Transcribe system audio
-            if system_audio and len(system_audio) > 1000:
-                print("🤖 Transcribing system audio...")
-                sys_transcription = (
-                    app.transcription_service.transcribe_audio_bytes(
-                        system_audio
-                    )
-                )
-                app.logger.log_transcription(
-                    sys_transcription, "🔊 SYSTEM_AUDIO"
-                )
-            
-    except KeyboardInterrupt:
-        print("\n\n� Stopping application...")
-        app.logger.log_info("Application stopped by user")
-        print("👋 Goodbye!")
-    except Exception as e:
-        error_msg = f"Error: {e}"
-        app.logger.log_error(error_msg)
-        print(f"❌ {error_msg}")
-    finally:
-        app.recorder.cleanup()
-        sys.exit(0)
+    """Main entry point."""
+    app = StreamingTranscriptionApp()
+    app.run()
 
 
 if __name__ == "__main__":

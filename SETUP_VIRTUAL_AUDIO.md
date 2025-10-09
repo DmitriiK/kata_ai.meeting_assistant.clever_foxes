@@ -241,6 +241,22 @@ A: System Settings → Sound → Output → Select your headset instead of Multi
 **Q: Does this work with AirPods/Bluetooth?**
 A: Yes, works with any output device.
 
+**Q: What if I unplug my headset?**
+A: The Multi-Output Device will break since it's configured for your headset. To fix:
+
+1. **Quick Fix (Temporary):**
+   - Open **Audio MIDI Setup**
+   - Select **Multi-Output Device**
+   - Uncheck your headset (now unavailable)
+   - Check **MacBook Pro Speakers**
+   - Audio routing restored
+
+2. **Permanent Solution:**
+   - Create multiple Multi-Output Devices:
+     - **Multi-Output Device 1**: Headset + BlackHole (when headset plugged in)
+     - **Multi-Output Device 2**: MacBook Speakers + BlackHole (when no headset)
+   - Switch between them in System Settings → Sound → Output as needed
+
 ---
 
 ## Summary
