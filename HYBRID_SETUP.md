@@ -1,12 +1,12 @@
-# Hybrid Transcription System Setup Guide
+# Streaming Transcription System Setup Guide
 
 ## Overview
 
-This meeting assistant uses a **hybrid approach** combining:
-- **Local VAD (Voice Activity Detection)**: Detects when speech occurs (fast, free, privacy-preserving)
-- **Azure Speech Service**: Cloud transcription with speaker diarization (accurate, identifies speakers)
-
-This approach minimizes cloud costs by only sending audio when speech is detected, while providing high-quality transcription with speaker identification.
+This meeting assistant uses **Azure Speech Service streaming recognition** for:
+- **Real-time transcription**: No delays, transcribes as you speak
+- **Multi-language support**: Auto-detects English, Russian, Turkish
+- **Dual audio sources**: Captures both microphone and system audio
+- **Language detection**: Automatically identifies and switches between languages
 
 ## Prerequisites
 
@@ -27,57 +27,48 @@ This approach minimizes cloud costs by only sending audio when speech is detecte
 
 Already installed:
 ```bash
-uv add azure-cognitiveservices-speech webrtcvad
+uv add azure-cognitiveservices-speech
 ```
 
 ## Configuration
 
 Edit `config.py` to customize:
 
-### VAD Settings
-```python
-class VADSettings:
-    AGGRESSIVENESS = 2  # 0-3: higher = more aggressive filtering
-    FRAME_DURATION_MS = 30  # 10, 20, or 30
-    MIN_SPEECH_DURATION = 0.5  # Minimum speech length in seconds
-```
-
 ### Azure Speech Settings
 ```python
 class AzureSpeechService:
-    ENABLE_DIARIZATION = True  # Speaker identification
-    MIN_SPEAKERS = 2  # Expected minimum speakers
-    MAX_SPEAKERS = 10  # Expected maximum speakers
+    SPEECH_LANGUAGE = "auto"  # Auto-detect or "en-US", "ru-RU", "tr-TR"
+    CANDIDATE_LANGUAGES = ["en-US", "ru-RU", "tr-TR"]
 ```
 
 ## How It Works
 
 ### Workflow:
 ```
-1. Audio Recording (5s chunks)
+1. Continuous Audio Streaming
    ↓
-2. VAD Detection (local, instant)
-   ↓ (if speech detected)
-3. Azure Speech Service (cloud transcription + diarization)
+2. Azure Speech Service (cloud, real-time)
    ↓
-4. Display with speaker labels
+3. Language Detection (automatic)
+   ↓
+4. Display with source labels (mic/system audio)
 ```
 
 ### Benefits:
 
-**Cost Optimization:**
-- VAD filters silence and noise locally
-- Only actual speech sent to Azure
-- Reduces Azure costs by 50-80%
+**Real-Time Transcription:**
+- Azure has built-in silence detection
+- Immediate transcription as you speak
+- No chunking delays
 
 **Accuracy:**
-- Azure Speech Service > Local Whisper
-- Real-time processing
-- No missed speech at chunk boundaries
+- Azure Speech Service handles multiple languages
+- Automatically switches between languages
+- High-quality transcription
 
-**Speaker Identification:**
-- Distinguishes different speakers: "Speaker 1", "Speaker 2", etc.
-- Helps identify who said what in meetings
+**Source Identification:**
+- 🎤 MICROPHONE - Your voice
+- 🔊 SYSTEM_AUDIO - Other participants (from meetings)
 
 ## Usage
 
@@ -88,19 +79,25 @@ uv run python main.py
 
 The app will:
 1. Auto-detect your microphone and BlackHole (system audio)
-2. Use VAD to detect speech
-3. Send speech to Azure for transcription
-4. Display results with speaker labels
+2. Stream audio directly to Azure Speech Service
+3. Display interim results as you speak (yellow text)
+4. Show final transcriptions (green boxes)
+5. Log language changes automatically
 
 ### Expected Output:
 ```
-🎯 TRANSCRIPTION RESULT 
-💬 [Speaker 1] I think we should increase the budget
-⏰ 2025-10-09 12:34:56 | 🎤 MICROPHONE
+⚡ [INTERIM] [� MICROPHONE] I think we should...
+⚡ [INTERIM] [🎤 MICROPHONE] I think we should increase the budget
+
+🌍 Language detected: 🇺🇸 English [🎤 MICROPHONE]
+
+�🎯 TRANSCRIPTION RESULT 
+💬 I think we should increase the budget
+⏰ 2025-10-09 12:34:56 | 🎤 🎤 MICROPHONE
 
 🎯 TRANSCRIPTION RESULT 
-💬 [Speaker 2] That sounds good, let me check the numbers
-⏰ 2025-10-09 12:34:59 | 🔊 SYSTEM_AUDIO
+💬 That sounds good, let me check the numbers
+⏰ 2025-10-09 12:34:59 | 🎤 🔊 SYSTEM_AUDIO
 ```
 
 ## Testing
@@ -114,16 +111,6 @@ transcriber = AzureSpeechTranscriber()
 print("✅ Azure Speech Service connected!")
 ```
 
-### Test VAD:
-```python
-# test_vad.py
-from vad_detector import VADDetector
-
-vad = VADDetector()
-# Record some audio and test
-# vad.detect_speech_in_chunk(audio_bytes)
-```
-
 ## Troubleshooting
 
 ### "AZURE_SPEECH_SERVICE_KEY not set"
@@ -131,34 +118,29 @@ vad = VADDetector()
 - Ensure the key is correct
 - Restart the app after adding the key
 
-### No speaker diarization
-- Ensure `ENABLE_DIARIZATION = True` in config
-- Speaker diarization requires Azure Speech Service (not available in free tier with all features)
-- Check Azure Speech Service pricing for diarization support
+### Wrong language detected
+- Set specific language in `.env`: `SPEECH_LANGUAGE=ru-RU`
+- Or adjust `CANDIDATE_LANGUAGES` in `config.py`
+
+### Delayed transcription
+- Azure has built-in silence detection
+- Transcription appears when you pause/finish sentence
+- Interim results show real-time progress
 
 ### High Azure costs
-- Increase `VADSettings.AGGRESSIVENESS` to filter more non-speech
-- Increase `MIN_SPEECH_DURATION` to ignore very short sounds
 - Monitor usage in Azure Portal
-
-### VAD too sensitive/not sensitive enough
-- Adjust `AGGRESSIVENESS`:
-  - 0: Most sensitive (captures more, may include noise)
-  - 3: Least sensitive (only clear speech)
-
-## Fallback Mode
-
-If Azure credentials are not set, the app automatically falls back to local Whisper transcription (no speaker diarization, but still works offline).
+- Consider using specific language instead of auto-detection
+- Azure charges per minute of audio processed
 
 ## Cost Estimation
 
 **Azure Speech Service Pricing (as of 2025):**
-- Standard: ~$1/hour of audio
-- With VAD filtering: ~$0.30-$0.50/hour (typical meeting)
+- Standard: ~$1/hour of audio transcribed
+- Streaming recognition charges per minute processed
 
 **Example:**
-- 1-hour meeting with 40% actual speech
-- Cost: ~$0.40
+- 1-hour meeting
+- Cost: ~$1.00
 
 ## Next Steps
 
@@ -175,4 +157,4 @@ For issues:
 - Check `transcriptions.log` for errors
 - Verify Azure credentials in `.env`
 - Test internet connection for Azure API
-- Review VAD settings in `config.py`
+- Review language settings in `config.py`

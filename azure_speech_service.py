@@ -10,18 +10,21 @@ from typing import Optional, Callable
 class AzureSpeechTranscriber:
     """Azure Speech Service transcriber with speaker diarization."""
     
-    def __init__(self, callback: Optional[Callable] = None):
+    def __init__(self, callback: Optional[Callable] = None, logger=None):
         """
         Initialize Azure Speech transcriber.
         
         Args:
             callback: Function to call with transcription results
                      Signature: callback(text: str, speaker_id: str)
+            logger: TranscriptionLogger instance for logging
         """
         self.callback = callback
+        self.logger = logger
         self.speech_config = None
         self.audio_stream = None
         self.is_streaming = False
+        self.current_language = None  # Track current detected language
         self.initialize_config()
     
     def initialize_config(self):
@@ -39,6 +42,18 @@ class AzureSpeechTranscriber:
             subscription=AzureSpeechService.AZURE_SPEECH_SERVICE_KEY,
             region=AzureSpeechService.AZURE_SPEECH_SERVICE_REGION
         )
+        
+        # Configure language detection/recognition
+        lang = AzureSpeechService.SPEECH_LANGUAGE
+        if lang == "auto":
+            # Enable automatic language detection
+            print("🌍 Auto language detection enabled "
+                  f"({', '.join(AzureSpeechService.CANDIDATE_LANGUAGES)})")
+            # Auto-detect will be configured per recognizer
+        else:
+            # Set specific language
+            self.speech_config.speech_recognition_language = lang
+            print(f"🌍 Language set to: {lang}")
         
         # Enable detailed results for speaker diarization
         self.speech_config.output_format = (
@@ -145,17 +160,69 @@ class AzureSpeechTranscriber:
                 stream=self.audio_stream
             )
             
-            # Create speech recognizer
-            recognizer = speechsdk.SpeechRecognizer(
-                speech_config=self.speech_config,
-                audio_config=audio_config
-            )
+            # Create speech recognizer with language detection if enabled
+            lang = AzureSpeechService.SPEECH_LANGUAGE
+            if lang == "auto":
+                # Create auto-detect config
+                auto_detect_config = (
+                    speechsdk.languageconfig.AutoDetectSourceLanguageConfig(
+                        languages=AzureSpeechService.CANDIDATE_LANGUAGES
+                    )
+                )
+                recognizer = speechsdk.SpeechRecognizer(
+                    speech_config=self.speech_config,
+                    auto_detect_source_language_config=auto_detect_config,
+                    audio_config=audio_config
+                )
+            else:
+                # Use specific language
+                recognizer = speechsdk.SpeechRecognizer(
+                    speech_config=self.speech_config,
+                    audio_config=audio_config
+                )
             
             # Set up event handlers
             def handle_recognized(evt):
                 """Handle final recognition results."""
                 reason = speechsdk.ResultReason.RecognizedSpeech
                 if evt.result.reason == reason:
+                    # Detect language if auto-detection is enabled
+                    detected_lang = None
+                    if lang == "auto":
+                        try:
+                            # Get detected language from result properties
+                            auto_detect_result = (
+                                speechsdk.AutoDetectSourceLanguageResult(
+                                    evt.result
+                                )
+                            )
+                            detected_lang = auto_detect_result.language
+                            
+                            # Check if language changed
+                            if detected_lang != self.current_language:
+                                lang_map = {
+                                    "en-US": "🇺🇸 English",
+                                    "ru-RU": "🇷🇺 Russian",
+                                    "tr-TR": "🇹🇷 Turkish"
+                                }
+                                lang_name = lang_map.get(
+                                    detected_lang, detected_lang
+                                )
+                                print(
+                                    f"\n🌍 Language detected: "
+                                    f"{lang_name} [{source_label}]"
+                                )
+                                self.current_language = detected_lang
+                                
+                                # Log to file if logger available
+                                if self.logger:
+                                    self.logger.log_language_change(
+                                        detected_lang, source_label
+                                    )
+                        except Exception:
+                            # Language detection not available
+                            pass
+                    
                     if result_callback:
                         result_callback(evt.result.text, source_label)
             

@@ -10,6 +10,28 @@ AZURE_SPEECH_SERVICE_KEY=your_key_here
 AZURE_SPEECH_SERVICE_REGION=your_region_here  # e.g., "eastus"
 ```
 
+### Optional: Language Configuration
+```bash
+# Language for speech recognition
+# Options: "auto" (default), "en-US", "ru-RU", "tr-TR", or any Azure-supported language
+SPEECH_LANGUAGE=auto
+
+# When using "auto", it will detect between English, Russian, and Turkish
+# You can customize candidate languages in config.py
+```
+
+**Supported Languages**:
+- `auto` - Automatic detection (English/Russian/Turkish by default)
+- `en-US` - English (United States)
+- `ru-RU` - Russian
+- `tr-TR` - Turkish
+- `es-ES` - Spanish (Spain)
+- `fr-FR` - French
+- `de-DE` - German
+- `ja-JP` - Japanese
+- `zh-CN` - Chinese (Mandarin)
+- And [many more](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support)
+
 ### Optional: Custom Log File Path
 ```bash
 # Default: transcriptions.log (in project directory)
@@ -29,14 +51,6 @@ class AudioSettings:
     MIN_AUDIO_LENGTH = 1000   # Min bytes to attempt transcription
 ```
 
-### Voice Activity Detection (VAD)
-```python
-class VADSettings:
-    AGGRESSIVENESS = 2              # 0-3 (0=least, 3=most aggressive)
-    FRAME_DURATION_MS = 30          # 10, 20, or 30 ms
-    MIN_SPEECH_DURATION = 0.5       # Minimum speech duration (seconds)
-```
-
 ### Logging
 ```python
 class LogSettings:
@@ -48,6 +62,11 @@ class LogSettings:
 ### Azure Speech Service
 ```python
 class AzureSpeechService:
+    # Language: "auto", "en-US", "ru-RU", "tr-TR", or any supported language code
+    SPEECH_LANGUAGE = "auto"
+    # For auto-detection, specify candidate languages
+    CANDIDATE_LANGUAGES = ["en-US", "ru-RU", "tr-TR"]
+    
     ENABLE_DIARIZATION = True   # Enable speaker identification
     MIN_SPEAKERS = 2            # Minimum expected speakers
     MAX_SPEAKERS = 10           # Maximum expected speakers

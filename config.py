@@ -17,19 +17,6 @@ class AudioSettings:
     MIN_AUDIO_LENGTH = 1000  # Minimum audio bytes to attempt transcription
 
 
-# Voice Activity Detection Settings
-class VADSettings:
-    """Voice Activity Detection configuration."""
-    # VAD aggressiveness mode (0-3)
-    # 0: least aggressive (more likely to detect speech)
-    # 3: most aggressive (filters more non-speech)
-    AGGRESSIVENESS = 2
-    # Frame duration in ms (10, 20, or 30)
-    FRAME_DURATION_MS = 30
-    # Minimum speech duration to trigger transcription (seconds)
-    MIN_SPEECH_DURATION = 0.5
-
-
 # Logging Settings
 class LogSettings:
     """Logging and output configuration."""
@@ -52,6 +39,15 @@ class AzureSpeechService:
     """Azure Speech Service configuration."""
     AZURE_SPEECH_SERVICE_KEY = os.getenv("AZURE_SPEECH_SERVICE_KEY")
     AZURE_SPEECH_SERVICE_REGION = os.getenv("AZURE_SPEECH_SERVICE_REGION")
+    
+    # Language configuration
+    # Options: "en-US", "ru-RU", "tr-TR", "auto" (auto-detect)
+    SPEECH_LANGUAGE = os.getenv("SPEECH_LANGUAGE", "auto")
+    
+    # For auto-detection, list candidate languages
+    # More languages = slower but more accurate detection
+    CANDIDATE_LANGUAGES = ["en-US", "ru-RU", "tr-TR"]
+    
     # Enable speaker diarization (identify different speakers)
     ENABLE_DIARIZATION = True
     # Number of expected speakers (None = auto-detect)

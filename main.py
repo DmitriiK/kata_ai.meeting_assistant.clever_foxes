@@ -17,8 +17,7 @@ import pyaudio
 import time
 from azure_speech_service import AzureSpeechTranscriber
 from transcription_logger import TranscriptionLogger
-from vad_detector import VADDetector
-from config import AudioSettings, LogSettings, VADSettings
+from config import AudioSettings, LogSettings
 from audio_recorder import AudioRecorder
 
 
@@ -29,10 +28,7 @@ class StreamingTranscriptionApp:
         
         # Initialize components
         self.logger = TranscriptionLogger(log_file=LogSettings.LOG_FILE)
-        self.vad = VADDetector(
-            sample_rate=AudioSettings.SAMPLE_RATE,
-            aggressiveness=VADSettings.AGGRESSIVENESS
-        )
+        # VAD removed - Azure has built-in silence detection
         
         # Initialize audio
         self.audio = pyaudio.PyAudio()
@@ -56,9 +52,9 @@ class StreamingTranscriptionApp:
         signal.signal(signal.SIGINT, self.signal_handler)
         
         print("✅ Streaming transcription service initialized")
-        print("   📍 Local VAD for speech detection")
         print("   ☁️  Azure Speech Service in streaming mode")
         print("   ⚡ Real-time transcription with minimal delay!")
+        print("   🚀 Direct audio streaming (no VAD filtering)")
         print()
     
     def signal_handler(self, signum, frame):
@@ -94,20 +90,18 @@ class StreamingTranscriptionApp:
     def audio_callback_mic(self, in_data, frame_count, time_info, status):
         """Callback for microphone audio stream."""
         if self.is_running and self.mic_stream:
-            # Check for speech with VAD
-            if self.vad.detect_speech_in_chunk(in_data):
-                # Push to Azure Speech Service
-                self.mic_stream.write(in_data)
+            # Send all audio directly to Azure (no VAD filtering)
+            # Azure has built-in silence detection for faster response
+            self.mic_stream.write(in_data)
         
         return (in_data, pyaudio.paContinue)
     
     def audio_callback_sys(self, in_data, frame_count, time_info, status):
         """Callback for system audio stream."""
         if self.is_running and self.sys_stream:
-            # Check for speech with VAD
-            if self.vad.detect_speech_in_chunk(in_data):
-                # Push to Azure Speech Service
-                self.sys_stream.write(in_data)
+            # Send all audio directly to Azure (no VAD filtering)
+            # Azure has built-in silence detection for faster response
+            self.sys_stream.write(in_data)
         
         return (in_data, pyaudio.paContinue)
     
@@ -155,7 +149,9 @@ class StreamingTranscriptionApp:
         print("\n🎙️  Starting streaming recognition...")
         
         if mic_device is not None:
-            self.mic_transcriber = AzureSpeechTranscriber()
+            self.mic_transcriber = AzureSpeechTranscriber(
+                logger=self.logger
+            )
             self.mic_stream, self.mic_recognizer = (
                 self.mic_transcriber.start_continuous_recognition(
                     source_label="🎤 MICROPHONE",
@@ -168,7 +164,9 @@ class StreamingTranscriptionApp:
             )
         
         if sys_device is not None:
-            self.sys_transcriber = AzureSpeechTranscriber()
+            self.sys_transcriber = AzureSpeechTranscriber(
+                logger=self.logger
+            )
             self.sys_stream, self.sys_recognizer = (
                 self.sys_transcriber.start_continuous_recognition(
                     source_label="🔊 SYSTEM_AUDIO",

@@ -81,6 +81,31 @@ class TranscriptionLogger:
                 f.write(f"{log_entry}\n")
         # If no text, do nothing (silent mode)
     
+    def log_language_change(self, language: str, source: str = ""):
+        """
+        Log language detection/change.
+        
+        Args:
+            language: Detected language (e.g., "en-US", "ru-RU", "tr-TR")
+            source: Audio source label
+        """
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        lang_map = {
+            "en-US": "🇺🇸 English",
+            "ru-RU": "🇷🇺 Russian",
+            "tr-TR": "🇹🇷 Turkish"
+        }
+        lang_name = lang_map.get(language, language)
+        
+        log_entry = f"[{timestamp}] [LANG] {lang_name}"
+        if source:
+            log_entry += f" [{source}]"
+        
+        # Write to log file
+        with open(self.log_file, 'a', encoding='utf-8') as f:
+            f.write(f"{log_entry}\n")
+    
     def log_info(self, message: str):
         """
         Log informational message.

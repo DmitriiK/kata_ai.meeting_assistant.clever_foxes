@@ -14,6 +14,4 @@ dependencies = [
     "sounddevice>=0.5.2",
     "colorama>=0.4.6",
     "pydub>=0.25.1",
-    "webrtcvad>=2.0.10",
-    "setuptools>=80.9.0",
 ]
