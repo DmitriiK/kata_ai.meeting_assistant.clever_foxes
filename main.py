@@ -51,10 +51,11 @@ class StreamingTranscriptionApp:
         # Set up signal handler
         signal.signal(signal.SIGINT, self.signal_handler)
         
-        print("✅ Streaming transcription service initialized")
-        print("   ☁️  Azure Speech Service in streaming mode")
-        print("   ⚡ Real-time transcription with minimal delay!")
-        print("   🚀 Direct audio streaming (no VAD filtering)")
+        print("✅ Conversation transcription service initialized")
+        print("   ☁️  Azure Conversation Transcriber API")
+        print("   👥 Speaker diarization enabled")
+        print("   🌍 Multi-language support")
+        print("   ⚠️  ~1-3 second delay for speaker identification")
         print()
     
     def signal_handler(self, signum, frame):
@@ -64,18 +65,21 @@ class StreamingTranscriptionApp:
         self.cleanup()
         sys.exit(0)
     
-    def result_callback(self, text: str, source: str):
+    def result_callback(self, text: str, source: str, speaker_id: str = None):
         """
         Callback for final transcription results.
         
         Args:
             text: Transcribed text
             source: Audio source label
+            speaker_id: Speaker identifier
         """
         if text and text.strip():
-            self.logger.log_transcription(text, source)
+            self.logger.log_transcription(text, source, speaker_id)
     
-    def interim_callback(self, text: str, source: str):
+    def interim_callback(
+        self, text: str, source: str, speaker_id: str = None
+    ):
         """
         Callback for interim/partial transcription results.
         Shows what's being transcribed in real-time.
@@ -83,9 +87,10 @@ class StreamingTranscriptionApp:
         Args:
             text: Partial transcribed text
             source: Audio source label
+            speaker_id: Speaker identifier
         """
         if text and text.strip():
-            self.logger.log_interim_result(text, source)
+            self.logger.log_interim_result(text, source, speaker_id)
     
     def audio_callback_mic(self, in_data, frame_count, time_info, status):
         """Callback for microphone audio stream."""
@@ -146,7 +151,8 @@ class StreamingTranscriptionApp:
             print("   Only microphone will be captured.")
         
         # Initialize Azure transcribers with callbacks
-        print("\n🎙️  Starting streaming recognition...")
+        print("\n🎙️  Starting conversation transcription with speaker "
+              "diarization...")
         
         if mic_device is not None:
             self.mic_transcriber = AzureSpeechTranscriber(
@@ -182,10 +188,11 @@ class StreamingTranscriptionApp:
         self.is_running = True
         
         print("\n" + "=" * 60)
-        print("🎙️  LIVE STREAMING TRANSCRIPTION")
+        print("🎙️  LIVE CONVERSATION TRANSCRIPTION")
         print("=" * 60)
-        print("📝 Real-time transcription from microphone and system audio")
-        print("⚡ No chunking delays - transcribes as you speak!")
+        print("📝 Transcription with speaker identification")
+        print("👥 Distinguishes between multiple speakers")
+        print("⏱️  ~1-3 second delay for speaker diarization")
         print("🛑 Press Ctrl+C to stop")
         print("=" * 60 + "\n")
         
