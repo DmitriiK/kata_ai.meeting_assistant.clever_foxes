@@ -40,15 +40,16 @@ class MeetingInsight:
 class MeetingSummaryManager:
     """Manages meeting summaries and insights throughout sessions."""
     
-    def __init__(self, output_dir: str = "meeting_summaries"):
+    def __init__(self, output_dir: str = "sessions"):
         """
         Initialize the summary manager.
         
         Args:
-            output_dir: Directory to store meeting summaries
+            output_dir: Base directory to store session folders
         """
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
+        self.base_output_dir = Path(output_dir)
+        self.base_output_dir.mkdir(exist_ok=True)
+        self.session_output_dir = None  # Will be set when session starts
         
         # Current session data
         self.current_session: Optional[MeetingSession] = None
@@ -70,6 +71,11 @@ class MeetingSummaryManager:
         """
         session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Create session-specific output directory
+        self.session_output_dir = self.base_output_dir / f"session_{session_id}"
+        self.session_output_dir.mkdir(exist_ok=True)
+        print(f"📁 Created session folder: {self.session_output_dir}")
         
         self.current_session = MeetingSession(
             session_id=session_id,
@@ -206,7 +212,7 @@ class MeetingSummaryManager:
         Returns:
             Path to saved file, or None if failed
         """
-        if not self.current_session:
+        if not self.current_session or not self.session_output_dir:
             return None
         
         summary = self.generate_session_summary()
@@ -214,7 +220,7 @@ class MeetingSummaryManager:
         if filename is None:
             filename = f"meeting_summary_{self.current_session.session_id}.json"
         
-        filepath = self.output_dir / filename
+        filepath = self.session_output_dir / filename
         
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -286,13 +292,13 @@ class MeetingSummaryManager:
     
     def export_to_markdown(self, filepath: str = None) -> Optional[str]:
         """Export session summary to Markdown format."""
-        if not self.current_session:
+        if not self.current_session or not self.session_output_dir:
             return None
         
         summary = self.generate_session_summary()
         
         if filepath is None:
-            filepath = self.output_dir / f"meeting_summary_{self.current_session.session_id}.md"
+            filepath = self.session_output_dir / f"meeting_summary_{self.current_session.session_id}.md"
         
         try:
             with open(filepath, 'w', encoding='utf-8') as f:

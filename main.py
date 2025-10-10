@@ -30,6 +30,9 @@ class StreamingTranscriptionApp:
         # Initialize components
         self.logger = TranscriptionLogger(log_file=LogSettings.LOG_FILE)
         self.meeting_assistant = MeetingAssistantService()
+        
+        # Update logger with session directory once meeting starts
+        self.session_started = False
         # VAD removed - Azure has built-in silence detection
         
         # Initialize audio
@@ -83,6 +86,12 @@ class StreamingTranscriptionApp:
             source: Audio source label
         """
         if text and text.strip():
+            # Update logger session directory if not already done
+            if not self.session_started and self.meeting_assistant.session_active:
+                session_dir = str(self.meeting_assistant.summary_manager.session_output_dir)
+                self.logger.update_session_dir(session_dir)
+                self.session_started = True
+            
             self.logger.log_transcription(text, source)
             
             # Process with AI meeting assistant

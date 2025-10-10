@@ -12,20 +12,44 @@ init(autoreset=True)
 
 
 class TranscriptionLogger:
-    def __init__(self, log_file: str = "transcriptions.log"):
+    def __init__(self, log_file: str = "transcriptions.log", session_dir: str = None):
         """
         Initialize logger.
         
         Args:
-            log_file: Path to log file
+            log_file: Base name for log file
+            session_dir: Optional session directory for saving logs
         """
-        self.log_file = log_file
+        self.base_log_file = log_file
+        self.session_dir = session_dir
+        
+        # Determine actual log file path
+        if session_dir and os.path.exists(session_dir):
+            self.log_file = os.path.join(session_dir, log_file)
+        else:
+            self.log_file = log_file
         
         # Create log file if it doesn't exist
-        if not os.path.exists(log_file):
-            with open(log_file, 'w') as f:
+        if not os.path.exists(self.log_file):
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(self.log_file), exist_ok=True) if os.path.dirname(self.log_file) else None
+            with open(self.log_file, 'w') as f:
                 start_time = datetime.datetime.now()
                 f.write(f"=== Transcription Log Started at {start_time} ===\n")
+    
+    def update_session_dir(self, session_dir: str):
+        """Update the session directory for log file location."""
+        self.session_dir = session_dir
+        if session_dir:
+            new_log_file = os.path.join(session_dir, self.base_log_file)
+            if new_log_file != self.log_file:
+                self.log_file = new_log_file
+                # Create new log file if it doesn't exist
+                if not os.path.exists(self.log_file):
+                    os.makedirs(os.path.dirname(self.log_file), exist_ok=True) if os.path.dirname(self.log_file) else None
+                    with open(self.log_file, 'w') as f:
+                        start_time = datetime.datetime.now()
+                        f.write(f"=== Transcription Log Started at {start_time} ===\n")
     
     def log_interim_result(self, text: str, source: str = "microphone"):
         """

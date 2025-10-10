@@ -61,8 +61,9 @@ def test_summary_manager_initialization():
     
     manager = MeetingSummaryManager(output_dir=temp_dir)
     
-    assert manager.output_dir.exists(), "Expected output directory to exist"
+    assert manager.base_output_dir.exists(), "Expected base output directory to exist"
     assert manager.current_session is None, "Expected no current session"
+    assert manager.session_output_dir is None, "Expected no session output directory initially"
     assert len(manager.insights) == 0, "Expected empty insights"
     assert manager.total_transcripts == 0, "Expected zero transcripts"
     assert manager.total_insights == 0, "Expected zero insights"

@@ -115,10 +115,13 @@ The AI Meeting Assistant consists of several intelligent components working toge
 - **Visual Formatting**: Color-coded output with emojis for easy reading
 
 ### Generated Files
-- **Transcription Log**: `transcriptions.log` - All spoken text with timestamps
-- **Meeting Summaries**: JSON format with comprehensive session data
-- **Markdown Reports**: Human-readable meeting reports with organized sections
-- **Session Data**: Persistent storage in `meeting_summaries/` directory
+Each meeting session creates its own dedicated folder containing all generated files:
+
+- **Session Folders**: `sessions/session_YYYYMMDD_HHMMSS/` - Each run creates a unique folder
+- **Transcription Log**: `transcriptions.log` - All spoken text with timestamps (saved in session folder)
+- **Meeting Summaries**: JSON format with comprehensive session data (saved in session folder)
+- **Markdown Reports**: Human-readable meeting reports with organized sections (saved in session folder)
+- **Session Data**: All files organized by session for easy management and review
 
 ### Meeting Summary Contents
 - Session information (duration, participants, timestamps)
@@ -128,6 +131,30 @@ The AI Meeting Assistant consists of several intelligent components working toge
 - Identified action items and assignments
 - Recorded decisions and agreements
 - Session statistics and analytics
+
+## File Organization
+
+The application uses a session-based file organization system where each meeting run creates its own dedicated folder:
+
+```
+sessions/
+├── session_20251011_143022/     # Each session gets a unique folder
+│   ├── transcriptions.log      # All transcribed speech with timestamps
+│   ├── meeting_summary_20251011_143022.json   # Comprehensive session data
+│   └── meeting_summary_20251011_143022.md     # Human-readable report
+├── session_20251011_150115/     # Another session
+│   ├── transcriptions.log
+│   ├── meeting_summary_20251011_150115.json
+│   └── meeting_summary_20251011_150115.md
+└── ...
+```
+
+### Benefits of Session-Based Organization:
+- **Isolated Sessions**: Each meeting run is completely separate
+- **Easy Management**: Find specific meeting data by timestamp
+- **No File Conflicts**: Multiple concurrent sessions won't interfere
+- **Clean Git History**: All generated files are gitignored by default
+- **Comprehensive Archives**: All related files (logs, summaries, reports) in one place
 
 ## Configuration Options
 

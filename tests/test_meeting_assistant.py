@@ -154,8 +154,9 @@ class TestMeetingSummaryManager:
     
     def test_initialization(self):
         """Test that the manager initializes correctly."""
-        assert self.manager.output_dir.exists()
+        assert self.manager.base_output_dir.exists()
         assert self.manager.current_session is None
+        assert self.manager.session_output_dir is None
         assert len(self.manager.insights) == 0
         assert self.manager.total_transcripts == 0
         assert self.manager.total_insights == 0

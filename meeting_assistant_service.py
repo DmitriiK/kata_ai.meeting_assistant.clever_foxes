@@ -297,7 +297,7 @@ Format your response clearly with headers.
             }
     
     def display_insights(self, insights: Dict[str, Any]):
-        """Display AI insights in a formatted way."""
+        """Display AI insights in a formatted way and save them to files."""
         if not insights:
             return
         
@@ -328,6 +328,57 @@ Format your response clearly with headers.
             print(f"\n{Fore.RED}❌ Error: {insights['error']}{Style.RESET_ALL}")
         
         print("=" * 50)
+        
+        # Save insights to individual files if session is active
+        self._save_real_time_insights(insights)
+    
+    def _save_real_time_insights(self, insights: Dict[str, Any]):
+        """Save real-time insights to individual files in the session folder."""
+        if not insights or not self.session_active or not self.summary_manager.session_output_dir:
+            return
+        
+        session_dir = self.summary_manager.session_output_dir
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        try:
+            # Save follow-up questions
+            if "questions" in insights and insights["questions"]:
+                questions_file = session_dir / "follow-up-questions.txt"
+                with open(questions_file, 'a', encoding='utf-8') as f:
+                    f.write(f"\n=== {timestamp} ===\n")
+                    for i, question in enumerate(insights["questions"], 1):
+                        f.write(f"{i}. {question}\n")
+                    f.write("\n")
+            
+            # Save key points
+            if "key_points" in insights and insights["key_points"]:
+                key_points_file = session_dir / "key-points.txt"
+                with open(key_points_file, 'a', encoding='utf-8') as f:
+                    f.write(f"\n=== {timestamp} ===\n")
+                    for point in insights["key_points"]:
+                        f.write(f"• {point}\n")
+                    f.write("\n")
+            
+            # Save action items
+            if "action_items" in insights and insights["action_items"]:
+                action_items_file = session_dir / "action-items.txt"
+                with open(action_items_file, 'a', encoding='utf-8') as f:
+                    f.write(f"\n=== {timestamp} ===\n")
+                    for item in insights["action_items"]:
+                        f.write(f"• {item}\n")
+                    f.write("\n")
+            
+            # Save decisions
+            if "decisions" in insights and insights["decisions"]:
+                decisions_file = session_dir / "decisions.txt"
+                with open(decisions_file, 'a', encoding='utf-8') as f:
+                    f.write(f"\n=== {timestamp} ===\n")
+                    for decision in insights["decisions"]:
+                        f.write(f"• {decision}\n")
+                    f.write("\n")
+                        
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save real-time insights to files: {e}")
     
     def save_summary_to_file(self, filename: str = None):
         """Save meeting summary to file."""
