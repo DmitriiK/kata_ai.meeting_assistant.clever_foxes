@@ -14,4 +14,5 @@ dependencies = [
     "sounddevice>=0.5.2",
     "colorama>=0.4.6",
     "pydub>=0.25.1",
+    "pyqt6>=6.9.1",
 ]
