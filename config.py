@@ -26,6 +26,15 @@ class LogSettings:
     SHOW_INTERIM_RESULTS = True
 
 
+# Session Settings
+class SessionSettings:
+    """Session management configuration."""
+    # Auto-pause after silence (seconds)
+    AUTO_PAUSE_SILENCE_DURATION = 60  # 1 minute of silence
+    # Enable auto-pause feature
+    ENABLE_AUTO_PAUSE = True
+
+
 # Azure OpenAI Settings (legacy - not currently used)
 class AzureOpenAI:
     """Azure OpenAI API configuration (for future LLM integration)."""

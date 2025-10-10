@@ -278,7 +278,11 @@ class AzureSpeechTranscriber:
                     if speaker_id and speaker_id.startswith("Guest-"):
                         # Extract number from "Guest-1", "Guest-2", etc.
                         speaker_num = speaker_id.replace("Guest-", "")
-                        speaker_display = f"Speaker {speaker_num}"
+                        # Microphone is Speaker 0, others are 1, 2, 3...
+                        if "MIC" in source_label.upper():
+                            speaker_display = "Speaker 0"
+                        else:
+                            speaker_display = f"Speaker {speaker_num}"
                     elif speaker_id:
                         speaker_display = speaker_id
                     else:
@@ -298,7 +302,11 @@ class AzureSpeechTranscriber:
                     # Format speaker ID
                     if speaker_id and speaker_id.startswith("Guest-"):
                         speaker_num = speaker_id.replace("Guest-", "")
-                        speaker_display = f"Speaker {speaker_num}"
+                        # Microphone is Speaker 0, others are 1, 2, 3...
+                        if "MIC" in source_label.upper():
+                            speaker_display = "Speaker 0"
+                        else:
+                            speaker_display = f"Speaker {speaker_num}"
                     elif speaker_id:
                         speaker_display = speaker_id
                     else:
