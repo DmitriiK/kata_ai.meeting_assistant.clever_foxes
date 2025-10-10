@@ -21,16 +21,17 @@ def list_models():
         return [cfg.AzureOpenAI.MODEL_NAME]
 
 
-def chat(message: str) -> str:
+def chat(message: str, max_tokens: int = 300, temperature: float = 0.7) -> str:
     """Send a message to the LLM and get a response."""
     try:
         response = client.chat.completions.create(
             model=cfg.AzureOpenAI.MODEL_NAME,
             messages=[
+                {"role": "system", "content": "You are a helpful AI meeting assistant. Provide concise, actionable responses that help improve meeting productivity and understanding."},
                 {"role": "user", "content": message}
             ],
-            max_tokens=100,
-            temperature=0.7
+            max_tokens=max_tokens,
+            temperature=temperature
         )
         
         content = response.choices[0].message.content

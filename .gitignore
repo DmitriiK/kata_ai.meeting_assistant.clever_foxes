@@ -206,3 +206,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 transcription_display.txt
+meeting_summaries/
+meeting_summary_*.json
+meeting_summary_*.md
