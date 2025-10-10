@@ -235,6 +235,45 @@ class AzureSpeechTranscriber:
                         return  # Skip duplicate
                     self.last_result = result_key
                     
+                    # Try to detect language if available
+                    if lang == "auto":
+                        try:
+                            detected_lang = None
+                            # Try to get language from result properties
+                            if hasattr(evt.result, 'properties'):
+                                lang_property = (
+                                    evt.result.properties.get(
+                                        speechsdk.PropertyId
+                                        .SpeechServiceResponse_JsonResult
+                                    )
+                                )
+                                if lang_property:
+                                    import json
+                                    result_json = json.loads(lang_property)
+                                    detected_lang = result_json.get('Language')
+                            
+                            if detected_lang and detected_lang != self.current_language:
+                                self.current_language = detected_lang
+                                lang_map = {
+                                    "en-US": "🇺🇸 English",
+                                    "ru-RU": "🇷🇺 Russian",
+                                    "tr-TR": "🇹🇷 Turkish"
+                                }
+                                lang_name = lang_map.get(
+                                    detected_lang, detected_lang
+                                )
+                                print(
+                                    f"\n🌍 Language switched: "
+                                    f"{lang_name} [{source_label}]"
+                                )
+                                if self.logger:
+                                    self.logger.log_language_change(
+                                        detected_lang, source_label
+                                    )
+                        except Exception as e:
+                            # Language detection not available
+                            pass
+                    
                     # Format speaker ID for display
                     if speaker_id and speaker_id.startswith("Guest-"):
                         # Extract number from "Guest-1", "Guest-2", etc.
