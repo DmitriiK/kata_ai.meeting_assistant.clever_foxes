@@ -15,4 +15,5 @@ dependencies = [
     "colorama>=0.4.6",
     "pydub>=0.25.1",
     "pyqt6>=6.9.1",
+    "pyyaml>=6.0.2",
 ]

@@ -16,7 +16,8 @@ import time
 import pyaudio
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QPushButton, QLabel, QGroupBox, QCheckBox, QComboBox
+    QTextEdit, QPushButton, QLabel, QGroupBox, QCheckBox, QComboBox,
+    QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QFont, QTextCursor, QColor, QIcon
@@ -24,9 +25,10 @@ from azure_speech_service import AzureSpeechTranscriber
 from transcription_logger import TranscriptionLogger
 from config import AudioSettings, LogSettings, SessionSettings
 from audio_recorder import AudioRecorder
+from translation_tts_controller import TranslationTTSController
 import llm_service
 import prompts
-from queue import Queue
+from queue import Queue, Empty
 
 
 class SignalEmitter(QObject):
@@ -35,6 +37,9 @@ class SignalEmitter(QObject):
     append_final = pyqtSignal(str, str, str, str)
     append_translation = pyqtSignal(str, str, str, str)
     update_status = pyqtSignal(bool)
+    update_speak_button = pyqtSignal(str, bool)  # text, enabled
+    show_warning = pyqtSignal(str)  # error message
+    clear_warning = pyqtSignal()
 
 
 class TranscriptionGUI(QMainWindow):
@@ -63,10 +68,19 @@ class TranscriptionGUI(QMainWindow):
         self.auto_pause_timer = QTimer()
         self.auto_pause_timer.timeout.connect(self.check_auto_pause)
         
-        # Translation
-        self.translation_enabled = False
+        # Feature 1: Text Translation
+        self.text_translation_enabled = False
         self.translation_queue = Queue()
         self.translation_worker_running = False
+        
+        # Feature 2: TTS to Microphone
+        self.tts_to_mic_enabled = False
+        self.tts_controller = TranslationTTSController()
+        self.tts_controller.on_state_change = self.on_tts_state_change
+        
+        # Error tracking
+        self.last_translation_error = None
+        self.translation_error_count = 0
         
         # Audio settings
         self.sample_rate = AudioSettings.SAMPLE_RATE
@@ -81,6 +95,9 @@ class TranscriptionGUI(QMainWindow):
         self.signals.append_final.connect(self.append_final)
         self.signals.append_translation.connect(self.append_translation)
         self.signals.update_status.connect(self.update_status)
+        self.signals.update_speak_button.connect(self.update_speak_button)
+        self.signals.show_warning.connect(self.show_warning)
+        self.signals.clear_warning.connect(self.clear_warning)
         
         # Setup GUI
         self.setup_ui()
@@ -114,10 +131,16 @@ class TranscriptionGUI(QMainWindow):
         self.status_label.setStyleSheet("color: red; font-size: 12pt;")
         header_layout.addWidget(self.status_label)
         
-        # Timer
+        # Warning indicator for translation errors (initialized here, added to footer later)
+        self.warning_label = QLabel("")
+        self.warning_label.setStyleSheet(
+            "color: orange; font-size: 14pt; font-weight: bold;"
+        )
+        self.warning_label.setVisible(False)
+        
+        # Timer (initialized here, added to footer later)
         self.timer_label = QLabel("⏱️ 00:00:00")
         self.timer_label.setStyleSheet("font-size: 12pt;")
-        header_layout.addWidget(self.timer_label)
         
         # Start/Stop button
         self.start_stop_btn = QPushButton("▶ Start Transcription")
@@ -138,25 +161,48 @@ class TranscriptionGUI(QMainWindow):
         
         main_layout.addLayout(header_layout)
         
-        # Translation controls
-        translation_layout = QHBoxLayout()
+        # Translation controls - Feature 1: Text Translation
+        translation_text_layout = QHBoxLayout()
         
-        # Translation checkbox
-        self.translate_checkbox = QCheckBox("Enable Translation")
-        self.translate_checkbox.stateChanged.connect(
-            self.toggle_translation
+        self.translate_text_checkbox = QCheckBox("Enable Text Translation")
+        self.translate_text_checkbox.stateChanged.connect(
+            self.toggle_text_translation
         )
-        translation_layout.addWidget(self.translate_checkbox)
+        translation_text_layout.addWidget(self.translate_text_checkbox)
         
-        # Language selector
-        translation_layout.addWidget(QLabel("Target Language:"))
-        self.language_selector = QComboBox()
-        self.language_selector.addItems(["English", "Russian", "Turkish"])
-        self.language_selector.setEnabled(False)
-        translation_layout.addWidget(self.language_selector)
+        translation_text_layout.addWidget(QLabel("Target Language:"))
+        self.text_translation_language = QComboBox()
+        self.text_translation_language.addItems(["English", "Russian", "Turkish"])
+        translation_text_layout.addWidget(self.text_translation_language)
         
-        translation_layout.addStretch()
-        main_layout.addLayout(translation_layout)
+        translation_text_layout.addStretch()
+        main_layout.addLayout(translation_text_layout)
+        
+        # TTS to Microphone controls - Feature 2: Speak Translation to Mic
+        tts_mic_layout = QHBoxLayout()
+        
+        self.tts_mic_checkbox = QCheckBox("Enable TTS to Microphone")
+        self.tts_mic_checkbox.stateChanged.connect(
+            self.toggle_tts_to_mic
+        )
+        tts_mic_layout.addWidget(self.tts_mic_checkbox)
+        
+        tts_mic_layout.addWidget(QLabel("TTS Language:"))
+        self.tts_language_selector = QComboBox()
+        self.tts_language_selector.addItems(["English", "Russian", "Turkish"])
+        self.tts_language_selector.currentTextChanged.connect(
+            self.on_tts_language_changed
+        )
+        tts_mic_layout.addWidget(self.tts_language_selector)
+        
+        self.speak_btn = QPushButton("Speak to Mic")
+        self.speak_btn.setEnabled(False)  # Only enabled during transcription
+        self.speak_btn.setMinimumWidth(150)
+        self.speak_btn.clicked.connect(self.toggle_speak_translation)
+        tts_mic_layout.addWidget(self.speak_btn)
+        
+        tts_mic_layout.addStretch()
+        main_layout.addLayout(tts_mic_layout)
         
         # Interim Results Group (single line)
         interim_group = QGroupBox("⚡ Interim Results (Live Transcription)")
@@ -207,6 +253,13 @@ class TranscriptionGUI(QMainWindow):
         self.translation_group.setLayout(translation_result_layout)
         main_layout.addWidget(self.translation_group)
         self.translation_group.hide()  # Hidden by default
+        
+        # Footer layout with warning indicator and timer
+        footer_layout = QHBoxLayout()
+        footer_layout.addWidget(self.warning_label)
+        footer_layout.addStretch()
+        footer_layout.addWidget(self.timer_label)
+        main_layout.addLayout(footer_layout)
         
         # Set window icon (for both window and dock/taskbar)
         try:
@@ -279,23 +332,126 @@ class TranscriptionGUI(QMainWindow):
         """Clear final results window."""
         self.final_text.clear()
     
-    def toggle_translation(self, state):
-        """Toggle translation feature on/off."""
-        self.translation_enabled = bool(state)
-        self.language_selector.setEnabled(self.translation_enabled)
+    def toggle_text_translation(self, state):
+        """Toggle text translation feature on/off."""
+        self.text_translation_enabled = bool(state)
         
-        if self.translation_enabled:
+        if self.text_translation_enabled:
             self.translation_group.show()
-            # Start translation worker thread if not running
-            if not self.translation_worker_running:
-                self.translation_worker_running = True
-                worker_thread = threading.Thread(
-                    target=self.translation_worker,
-                    daemon=True
-                )
-                worker_thread.start()
         else:
-            self.translation_group.hide()
+            # Hide translation window if TTS is also disabled
+            if not self.tts_to_mic_enabled:
+                self.translation_group.hide()
+    
+    def toggle_tts_to_mic(self, state):
+        """Toggle TTS to microphone feature on/off."""
+        self.tts_to_mic_enabled = bool(state)
+        
+        if self.tts_to_mic_enabled:
+            self.translation_group.show()
+            # Initialize TTS controller with selected language
+            self.tts_controller.set_language(
+                self.tts_language_selector.currentText()
+            )
+        else:
+            # Stop any ongoing TTS
+            self.tts_controller.stop_speaking()
+            # Hide translation window if text translation is also disabled
+            if not self.text_translation_enabled:
+                self.translation_group.hide()
+    
+    def on_tts_language_changed(self, language: str):
+        """Handle TTS language selector change."""
+        if self.tts_to_mic_enabled:
+            self.tts_controller.set_language(language)
+            print(f"🌍 TTS language changed to: {language}")
+    
+    def toggle_speak_translation(self):
+        """Handle Speak/Stop Speaking button click."""
+        if self.tts_controller.is_speaking():
+            # Currently speaking - stop it
+            self.tts_controller.stop_speaking()
+        else:
+            # Not speaking - start if ready
+            if self.tts_controller.is_ready():
+                self.tts_controller.speak()
+            else:
+                print("⚠️ No translation audio ready to speak")
+    
+    def on_tts_state_change(self, state: str):
+        """Handle TTS controller state changes."""
+        # Update button text and state based on TTS state
+        # Button is only enabled during transcription AND when ready/speaking
+        if state == TranslationTTSController.STATE_IDLE:
+            self.signals.update_speak_button.emit(
+                "Speak to Mic", False
+            )
+        elif state == TranslationTTSController.STATE_BUFFERING:
+            self.signals.update_speak_button.emit(
+                "Generating...", False
+            )
+        elif state == TranslationTTSController.STATE_READY:
+            # Only enable if transcription is running
+            enabled = self.is_running
+            self.signals.update_speak_button.emit(
+                "Speak to Mic", enabled
+            )
+        elif state == TranslationTTSController.STATE_SPEAKING:
+            # Only enable if transcription is running
+            enabled = self.is_running
+            self.signals.update_speak_button.emit(
+                "Stop Speaking", enabled
+            )
+    
+    def update_speak_button(self, text: str, enabled: bool):
+        """Update speak button (thread-safe)."""
+        self.speak_btn.setText(text)
+        self.speak_btn.setEnabled(enabled)
+    
+    def show_warning(self, message: str):
+        """Show warning icon with tooltip (thread-safe)."""
+        self.last_translation_error = message
+        self.translation_error_count += 1
+        
+        # Show warning icon with count
+        self.warning_label.setText(
+            f"⚠️ {self.translation_error_count}"
+        )
+        self.warning_label.setToolTip(
+            f"Translation Errors: {self.translation_error_count}\n"
+            f"Click to view details"
+        )
+        self.warning_label.setVisible(True)
+        self.warning_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        # Make clickable to show details
+        self.warning_label.mousePressEvent = lambda e: self.show_error_details()
+    
+    def show_error_details(self):
+        """Show error details dialog and clear warning."""
+        if self.last_translation_error:
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle("Translation Errors")
+            msg_box.setText(
+                f"Translation error count: {self.translation_error_count}"
+            )
+            msg_box.setDetailedText(
+                f"Last error:\n{self.last_translation_error}"
+            )
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg_box.exec()
+            
+            # Clear warning after showing details
+            self.clear_warning()
+    
+    def clear_warning(self):
+        """Clear warning indicator."""
+        self.warning_label.setVisible(False)
+        self.warning_label.setText("")
+        self.warning_label.setToolTip("")
+        self.last_translation_error = None
+        self.translation_error_count = 0
     
     def translation_worker(self):
         """Background worker thread for translation."""
@@ -303,41 +459,100 @@ class TranscriptionGUI(QMainWindow):
             try:
                 # Get item from queue (blocking with timeout)
                 item = self.translation_queue.get(timeout=1.0)
+                
+            except Empty:
+                # Queue timeout - this is normal, just continue
+                continue
+                
+            try:
                 text, source, speaker_id, timestamp = item
                 
-                # Get target language
-                target_lang = self.language_selector.currentText()
+                # Determine which language to use
+                # If both features enabled, use text translation language
+                if self.text_translation_enabled:
+                    target_lang = self.text_translation_language.currentText()
+                elif self.tts_to_mic_enabled:
+                    target_lang = self.tts_language_selector.currentText()
+                else:
+                    continue  # Neither feature enabled, skip
                 
-                # Get translation prompt
-                prompt = prompts.get_translation_prompt(
-                    text, target_lang
-                )
-                
-                # Call LLM for translation
-                translation = llm_service.chat(prompt)
-                
-                # Emit signal to update GUI
-                self.signals.append_translation.emit(
-                    translation, source, speaker_id, timestamp
-                )
-                
+                try:
+                    # Get translation prompt
+                    prompt = prompts.get_translation_prompt(
+                        text, target_lang
+                    )
+                    
+                    # Call LLM for translation (this can fail!)
+                    translation = llm_service.chat(prompt)
+                    
+                    # Emit signal to update GUI (for text translation)
+                    if self.text_translation_enabled:
+                        self.signals.append_translation.emit(
+                            translation, source, speaker_id, timestamp
+                        )
+                    
+                    # Add to TTS buffer if TTS to mic is enabled
+                    if self.tts_to_mic_enabled and translation.strip():
+                        try:
+                            self.tts_controller.add_translation(translation)
+                        except Exception as tts_error:
+                            error_msg = (
+                                f"TTS generation failed:\n{str(tts_error)}"
+                            )
+                            print(f"❌ {error_msg}")
+                            self.signals.show_warning.emit(error_msg)
+                    
+                except ConnectionError as conn_err:
+                    error_msg = (
+                        f"Connection Error:\n"
+                        f"Cannot reach translation service.\n"
+                        f"Check your network/VPN connection.\n\n"
+                        f"Details: {str(conn_err)}"
+                    )
+                    print(f"❌ {error_msg}")
+                    self.signals.show_warning.emit(error_msg)
+                    
+                except TimeoutError as timeout_err:
+                    error_msg = (
+                        f"Timeout Error:\n"
+                        f"Translation service not responding.\n\n"
+                        f"Details: {str(timeout_err)}"
+                    )
+                    print(f"❌ {error_msg}")
+                    self.signals.show_warning.emit(error_msg)
+                    
+                except Exception as translation_error:
+                    error_msg = (
+                        f"Translation Failed:\n"
+                        f"{str(translation_error)}\n\n"
+                        f"Text: {text[:50]}..."
+                    )
+                    print(f"❌ {error_msg}")
+                    self.signals.show_warning.emit(error_msg)
+                    
             except Exception as e:
-                if "Empty" not in str(e):
-                    print(f"Translation worker error: {e}")
-                continue
+                error_msg = (
+                    f"Translation worker error:\n{str(e)}\n\n"
+                    f"Type: {type(e).__name__}"
+                )
+                print(f"❌ {error_msg}")
+                self.signals.show_warning.emit(error_msg)
     
     def append_translation(
         self, text: str, source: str, speaker_id: str, timestamp: str
     ):
         """Append translated text to translation results window."""
-        # Format source icon
+        # Format source icon based on original source
         if "MIC" in source.upper():
             source_icon = "🎤"
         else:
             source_icon = "🔊"
         
-        # Format speaker ID
-        speaker_str = f"[{speaker_id}]" if speaker_id else ""
+        # Format speaker ID with "(translated)" label
+        if speaker_id:
+            speaker_str = f"[{speaker_id} (translated)]"
+        else:
+            speaker_str = "[(translated)]"
         
         # Insert formatted text with HTML styling
         self.translation_text.moveCursor(QTextCursor.MoveOperation.End)
@@ -345,7 +560,7 @@ class TranscriptionGUI(QMainWindow):
             f'<span style="color: #0066CC;">'
             f'[{timestamp}] [{source_icon} {source}]{speaker_str} '
             f'</span>'
-            f'<span style="color: #000000;">{text}</span><br>'
+            f'<span style="color: #9932CC;">{text}</span><br>'
         )
         
         # Auto-scroll to bottom
@@ -360,6 +575,20 @@ class TranscriptionGUI(QMainWindow):
                 "color: green; font-size: 12pt;"
             )
             self.start_stop_btn.setText("⏸ Stop Transcription")
+            
+            # Clear any previous warnings when starting new session
+            self.signals.clear_warning.emit()
+            
+            # Start translation worker if any feature is enabled
+            if (self.text_translation_enabled or self.tts_to_mic_enabled):
+                if not self.translation_worker_running:
+                    self.translation_worker_running = True
+                    worker_thread = threading.Thread(
+                        target=self.translation_worker,
+                        daemon=True
+                    )
+                    worker_thread.start()
+            
             # Start timers
             self.session_start_time = time.time()
             self.last_speech_time = time.time()
@@ -370,6 +599,13 @@ class TranscriptionGUI(QMainWindow):
             self.status_label.setText("● Stopped")
             self.status_label.setStyleSheet("color: red; font-size: 12pt;")
             self.start_stop_btn.setText("▶ Start Transcription")
+            
+            # Stop translation worker thread
+            self.translation_worker_running = False
+            
+            # Stop and clear TTS
+            self.tts_controller.stop_speaking()
+            
             # Stop timers
             self.timer.stop()
             self.auto_pause_timer.stop()
@@ -420,8 +656,11 @@ class TranscriptionGUI(QMainWindow):
             # Update last speech time for auto-pause
             self.last_speech_time = time.time()
             
-            # Queue for translation if enabled and not empty
-            if self.translation_enabled and text.strip():
+            # Queue for translation if any translation feature enabled
+            translation_needed = (
+                self.text_translation_enabled or self.tts_to_mic_enabled
+            )
+            if translation_needed and text.strip():
                 if self.translation_queue.qsize() < 5:  # Limit queue size
                     self.translation_queue.put(
                         (text, source, speaker_id, timestamp)
@@ -454,15 +693,6 @@ class TranscriptionGUI(QMainWindow):
     
     def start_transcription(self):
         """Start transcription in background thread."""
-        # Restart translation worker if translation is enabled
-        if self.translation_enabled and not self.translation_worker_running:
-            self.translation_worker_running = True
-            worker_thread = threading.Thread(
-                target=self.translation_worker,
-                daemon=True
-            )
-            worker_thread.start()
-        
         def run():
             try:
                 # Initialize PyAudio
@@ -654,6 +884,10 @@ class TranscriptionGUI(QMainWindow):
         """Handle window closing."""
         if self.is_running:
             self.stop_transcription()
+        
+        # Cleanup TTS controller
+        self.tts_controller.cleanup()
+        
         event.accept()
 
 
