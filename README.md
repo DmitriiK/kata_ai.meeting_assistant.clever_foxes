@@ -1,233 +1,750 @@
-# AI-Powered Meeting Assistant
+# AI-Powered Meeting Assistant 🦊
 
-An intelligent meeting assistant that combines real-time transcription with AI-powered insights to enhance meeting productivity and capture important information automatically.
+An intelligent meeting assistant that combines real-time transcription with AI-powered insights to enhance meeting productivity and capture important information automatically. Built by Team Clever Foxes for the Kata.ai challenge.
+
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Prerequisites & Setup](#prerequisites--setup)
+- [How It Works](#how-it-works)
+- [Usage Modes](#usage-modes)
+- [Configuration](#configuration)
+- [Output & File Organization](#output--file-organization)
+- [Virtual Audio Setup](#virtual-audio-setup)
+- [Troubleshooting](#troubleshooting)
+- [Architecture](#architecture)
+- [Development](#development)
+
+---
 
 ## Features
 
 ### 🎤 Real-Time Transcription
-- Real-time microphone and system audio capture using PyAudio
-- Speech-to-text transcription using Azure Speech Service
-- Support for multiple languages with auto-detection
-- Streaming transcription with minimal delay
+- **Streaming Recognition**: Direct Azure Speech Service integration with minimal delay
+- **Dual Audio Capture**: Records both microphone and system audio simultaneously
+- **Speaker Diarization**: Automatically identifies and distinguishes between multiple speakers
+- **Multi-language Support**: Auto-detects and switches between English, Russian, and Turkish
+- **Interim Results**: See transcription in real-time as you speak (before phrase completion)
 
 ### 🤖 AI-Powered Meeting Intelligence
 - **Smart Follow-up Questions**: Automatically suggests relevant questions to clarify or expand on topics
 - **Key Points Extraction**: Identifies and highlights important information from conversations
 - **Action Items Tracking**: Captures tasks, commitments, and assignments mentioned during meetings
 - **Decision Recording**: Automatically identifies and logs decisions made during discussions
+- **Real-time Insights**: AI analysis saved to individual text files as they're generated
 - **Meeting Summaries**: Generates comprehensive summaries with key outcomes and insights
 
+### 🌍 Translation Feature
+- **Real-time Translation**: LLM-powered translation using Azure OpenAI
+- **Multi-language Support**: Translate between English, Russian, and Turkish
+- **Non-blocking Processing**: Translation runs in separate thread without affecting transcription
+- **Dedicated Display**: Translations appear in separate window with timestamps
+
 ### 📊 Advanced Meeting Management
-- Session-based meeting tracking with timestamps
-- Comprehensive meeting statistics and analytics
-- Export summaries in JSON and Markdown formats
-- Persistent storage of meeting history and insights
-- Real-time meeting status and progress tracking
+- **Session-based Tracking**: Each meeting creates its own isolated folder with timestamp
+- **Comprehensive Analytics**: Meeting statistics and performance metrics
+- **Multiple Export Formats**: JSON (data), Markdown (reports), and individual text files (insights)
+- **Persistent Storage**: Complete meeting history with easy retrieval
+- **Auto-pause Feature**: Automatically pauses after period of silence (configurable)
 
-## Prerequisites
-
-1. **Azure Services Setup**:
-   - Azure Speech Service subscription (for real-time transcription)
-   - Azure OpenAI Service subscription (for AI insights and analysis)
-
-2. **Environment Configuration**:
-   Create a `.env` file with your Azure credentials:
-   ```env
-   AZURE_SPEECH_SERVICE_KEY=your_speech_service_key
-   AZURE_SPEECH_SERVICE_REGION=your_speech_region
-   AZURE_OPENAI_ENDPOINT=your_openai_endpoint
-   AZURE_OPENAI_API_KEY=your_openai_api_key
-   ```
+---
 
 ## Quick Start
 
-1. **Install dependencies**:
-   ```bash
-   uv sync
-   ```
-
-2. **Configure your environment**:
-   - Set up your `.env` file with Azure credentials (see Prerequisites)
-   - Ensure your microphone is working
-   - (Optional) Set up virtual audio device for system audio capture
-
-3. **Run the AI Meeting Assistant**:
-   ```bash
-   python main.py
-   ```
-
-4. **Start your meeting**:
-   - The application will automatically start a new meeting session
-   - Speak into your microphone and watch real-time transcription
-   - AI insights will appear automatically as the conversation progresses
-
-5. **End the meeting**:
-   - Press `Ctrl+C` to stop and generate a comprehensive meeting summary
-   - Summary files will be saved in both JSON and Markdown formats
-
-## How It Works
-
-The AI Meeting Assistant consists of several intelligent components working together:
-
-### Core Components
-
-- **StreamingTranscriptionApp** (`main.py`): Main application orchestrating all services
-- **AzureSpeechTranscriber** (`azure_speech_service.py`): Real-time speech-to-text using Azure Speech Service
-- **MeetingAssistantService** (`meeting_assistant_service.py`): AI-powered analysis and insight generation
-- **MeetingSummaryManager** (`summary_manager.py`): Session management and persistent storage
-- **TranscriptionLogger** (`transcription_logger.py`): Enhanced logging with visual formatting
-- **AudioRecorder** (`audio_recorder.py`): Multi-device audio capture management
-
-### AI Analysis Pipeline
-
-1. **Real-time Transcription**: Audio is continuously streamed to Azure Speech Service
-2. **Context Building**: Recent conversation context is maintained for AI analysis
-3. **Intelligent Analysis**: Azure OpenAI analyzes transcribed text to generate:
-   - Relevant follow-up questions
-   - Key points and important topics
-   - Action items and assignments
-   - Decisions and conclusions
-4. **Session Management**: All insights are tracked and organized throughout the meeting
-5. **Summary Generation**: Comprehensive meeting summaries are created automatically
-
-### Smart Features
-
-- **Contextual Understanding**: AI considers conversation flow and context
-- **Real-time Insights**: Analysis happens as the conversation progresses
-- **Duplicate Prevention**: Smart filtering to avoid repetitive suggestions
-- **Session Persistence**: All meeting data is saved for future reference
-
-## System Requirements
-
-- Python 3.10+
-- Working microphone (required)
-- Azure Speech Service subscription (required)
-- Azure OpenAI Service subscription (required)
-- Virtual audio device (optional, for system audio capture)
-- Stable internet connection (for Azure services)
-
-## Output & Results
-
-### Real-time Console Output
-- **Live Transcription**: Real-time speech-to-text with source identification
-- **AI Insights**: Contextual suggestions and analysis displayed as they're generated
-- **Session Status**: Ongoing statistics and meeting progress indicators
-- **Visual Formatting**: Color-coded output with emojis for easy reading
-
-### Generated Files
-Each meeting session creates its own dedicated folder containing all generated files:
-
-- **Session Folders**: `sessions/session_YYYYMMDD_HHMMSS/` - Each run creates a unique folder
-- **Transcription Log**: `transcriptions.log` - All spoken text with timestamps (saved in session folder)
-- **Meeting Summaries**: JSON format with comprehensive session data (saved in session folder)
-- **Markdown Reports**: Human-readable meeting reports with organized sections (saved in session folder)
-- **Session Data**: All files organized by session for easy management and review
-
-### Meeting Summary Contents
-- Session information (duration, participants, timestamps)
-- Complete conversation transcript
-- AI-generated follow-up questions
-- Extracted key points and topics
-- Identified action items and assignments
-- Recorded decisions and agreements
-- Session statistics and analytics
-
-## File Organization
-
-The application uses a session-based file organization system where each meeting run creates its own dedicated folder:
-
-```
-sessions/
-├── session_20251011_143022/     # Each session gets a unique folder
-│   ├── transcriptions.log      # All transcribed speech with timestamps
-│   ├── meeting_summary_20251011_143022.json   # Comprehensive session data
-│   └── meeting_summary_20251011_143022.md     # Human-readable report
-├── session_20251011_150115/     # Another session
-│   ├── transcriptions.log
-│   ├── meeting_summary_20251011_150115.json
-│   └── meeting_summary_20251011_150115.md
-└── ...
+### 1. Install Dependencies
+```bash
+uv sync
 ```
 
-### Benefits of Session-Based Organization:
-- **Isolated Sessions**: Each meeting run is completely separate
-- **Easy Management**: Find specific meeting data by timestamp
-- **No File Conflicts**: Multiple concurrent sessions won't interfere
-- **Clean Git History**: All generated files are gitignored by default
-- **Comprehensive Archives**: All related files (logs, summaries, reports) in one place
+### 2. Configure Environment
+Create a `.env` file in the project root:
+```env
+# Required: Azure Speech Service
+AZURE_SPEECH_SERVICE_KEY=your_speech_service_key
+AZURE_SPEECH_SERVICE_REGION=your_region  # e.g., "eastus"
 
-## Configuration Options
+# Required: Azure OpenAI (for AI insights)
+AZURE_OPENAI_ENDPOINT=your_openai_endpoint
+AZURE_OPENAI_API_KEY=your_openai_api_key
 
-### Audio Settings (`config.py`)
-- `CHUNK_DURATION`: Audio processing chunk size
-- `SAMPLE_RATE`: Audio sampling rate (16kHz recommended)
-- `MIN_AUDIO_LENGTH`: Minimum audio length for processing
+# Optional: Language Configuration
+SPEECH_LANGUAGE=auto  # "auto", "en-US", "ru-RU", "tr-TR", etc.
 
-### AI Analysis Settings
-- `min_text_length`: Minimum text length to trigger AI analysis
-- `max_history_items`: Number of recent conversations to keep in context
-- Language detection and multi-language support
+# Optional: Custom Log File Path
+TRANSCRIPTION_LOG_FILE=transcriptions.log
+```
 
-### Output Settings
-- `LOG_FILE`: Custom transcription log file path
-- `SHOW_INTERIM_RESULTS`: Toggle partial transcription display
-- Summary export formats and locations
+### 3. Run the Application
 
-## Architecture
+**Console Mode (Recommended for first-time users):**
+```bash
+python main.py
+```
 
-The system uses a modern, cloud-integrated architecture:
+**GUI Mode (Cross-platform with translation):**
+```bash
+python gui_app.py
+```
 
-- **Streaming Audio Processing**: Direct Azure Speech Service integration
-- **AI-Powered Analysis**: Azure OpenAI for intelligent meeting insights
-- **Session Management**: Persistent meeting tracking and organization
-- **Real-time Processing**: Minimal latency for immediate feedback
-- **Scalable Design**: Easily extensible for additional AI features
-
-## Demo & Testing
-
-### Try the Demo First
-
-Before running a live meeting, try the interactive demo to see AI capabilities:
-
+**Demo Mode (No microphone needed):**
 ```bash
 python demo.py
 ```
 
-The demo simulates a realistic meeting conversation and demonstrates:
-- Real-time AI analysis and insights
-- Follow-up question generation
-- Key points extraction
-- Action items identification
-- Decision tracking
-- Meeting summary generation
+### 4. Stop and Generate Summary
+- **Console Mode**: Press `Ctrl+C`
+- **GUI Mode**: Click "Stop Transcription" button
 
-### Run Tests
+Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 
-Verify functionality with the test suite:
+---
 
-```bash
-python tests/test_llm_communicator.py
+## Prerequisites & Setup
+
+### Required Services
+
+1. **Azure Speech Service**
+   - Sign up at [Azure Portal](https://portal.azure.com)
+   - Create a "Speech" resource
+   - Note your API Key and Region
+   - Used for: Real-time transcription with speaker diarization
+
+2. **Azure OpenAI Service**
+   - Create "OpenAI" resource in Azure Portal
+   - Deploy GPT-4 model
+   - Note your Endpoint and API Key
+   - Used for: AI-powered meeting insights and analysis
+
+### System Requirements
+
+- **Python**: 3.10 or higher
+- **Operating System**: macOS, Windows, or Linux
+- **Microphone**: Built-in or external (required)
+- **Internet**: Stable connection for Azure services
+- **Virtual Audio Device**: Optional but recommended for system audio capture
+  - macOS: BlackHole
+  - Windows: VB-Cable or VoiceMeeter
+  - See [Virtual Audio Setup](#virtual-audio-setup) for details
+
+### Cost Estimation
+
+**Azure Speech Service:**
+- Standard: ~$1 per hour of audio transcribed
+- Streaming recognition charges per minute processed
+
+**Azure OpenAI Service:**
+- GPT-4: ~$0.03 per 1K tokens (input) + $0.06 per 1K tokens (output)
+- Average 1-hour meeting: ~$0.50-2.00 depending on analysis frequency
+
+**Example 1-hour meeting total cost: ~$1.50-3.00**
+
+---
+
+## How It Works
+
+### Architecture Overview
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│   Microphone    │     │  System Audio   │
+│     Input       │     │  (Virtual Dev)  │
+└────────┬────────┘     └────────┬────────┘
+         │                       │
+         └───────────┬───────────┘
+                     │
+         ┌───────────▼───────────┐
+         │   Audio Streaming     │
+         │   (PyAudio)          │
+         └───────────┬───────────┘
+                     │
+         ┌───────────▼───────────┐
+         │  Azure Speech API     │
+         │  (Real-time Stream)   │
+         │  - Transcription      │
+         │  - Diarization        │
+         │  - Language Detection │
+         └───────────┬───────────┘
+                     │
+         ┌───────────▼───────────┐
+         │ Meeting Assistant     │
+         │ Service               │
+         │  - Context Building   │
+         │  - AI Analysis Queue  │
+         └───────────┬───────────┘
+                     │
+         ┌───────────▼───────────┐
+         │  Azure OpenAI         │
+         │  (GPT-4)             │
+         │  - Follow-up Q's      │
+         │  - Key Points         │
+         │  - Action Items       │
+         │  - Decisions          │
+         └───────────┬───────────┘
+                     │
+         ┌───────────▼───────────┐
+         │   Output Layer        │
+         │  - Console Display    │
+         │  - Log Files          │
+         │  - Session Files      │
+         │  - JSON/Markdown      │
+         └───────────────────────┘
 ```
 
-The tests cover:
-- Azure OpenAI integration
-- Meeting assistant service functionality
-- Summary manager operations
-- Session lifecycle management
-- AI analysis pipeline
+### Core Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| **Main Application** | `main.py` | Console-based orchestrator |
+| **GUI Application** | `gui_app.py` | Cross-platform GUI with PyQt6 |
+| **Speech Transcriber** | `azure_speech_service.py` | Azure Speech Service integration |
+| **Meeting Assistant** | `meeting_assistant_service.py` | AI analysis orchestration |
+| **Summary Manager** | `summary_manager.py` | Session & file management |
+| **Transcription Logger** | `transcription_logger.py` | Enhanced logging with formatting |
+| **Audio Recorder** | `audio_recorder.py` | Multi-device audio handling |
+| **LLM Service** | `llm_service.py` | Azure OpenAI communication |
+| **Prompts** | `prompts.py` | AI prompt templates |
+| **Configuration** | `config.py` | Centralized settings |
+
+### AI Analysis Pipeline
+
+1. **Audio Capture** → Continuous streaming from microphone and/or system audio
+2. **Transcription** → Real-time speech-to-text via Azure Speech Service
+3. **Context Building** → Recent conversation history maintained for analysis
+4. **AI Processing** → Azure OpenAI analyzes text when sufficient context available
+5. **Insight Generation** → Follow-up questions, key points, action items, decisions
+6. **Storage** → Insights saved to individual text files + comprehensive summaries
+7. **Display** → Real-time console/GUI output with visual formatting
+
+---
+
+## Usage Modes
+
+### Console Mode (`main.py`)
+
+**Best for:** Production use, server deployment, automation
+
+**Features:**
+- Lightweight, no GUI dependencies
+- Color-coded console output
+- Real-time transcription display
+- AI insights as they're generated
+- Ctrl+C to stop and generate summary
+
+**Output Example:**
+```
+🎯 TRANSCRIPTION RESULT 
+💬 We need to finalize the project timeline by next week
+⏰ 2025-10-11 14:23:15 | 🎤 MICROPHONE | 👤 Speaker 1
+
+🤖 AI FOLLOW-UP QUESTIONS
+💭 1. What are the key milestones for the project timeline?
+💭 2. Who will be responsible for each phase?
+💭 3. What dependencies might affect the timeline?
+
+📝 KEY POINTS IDENTIFIED
+• Project timeline needs finalization
+• Deadline: Next week
+```
+
+### GUI Mode (`gui_app.py`)
+
+**Best for:** Interactive use, demonstrations, translation needs
+
+**Features:**
+- Cross-platform (macOS, Windows, Linux)
+- Separate windows for interim and final results
+- Real-time translation with language selector
+- Start/stop buttons with visual feedback
+- Session timer and statistics
+- Auto-pause after silence period
+
+**Windows:**
+- **Interim Results**: Yellow background, updates as you speak
+- **Final Results**: Green background, confirmed transcriptions
+- **Translation**: Blue background, LLM-translated text (when enabled)
+
+**Controls:**
+- ▶ Start Transcription
+- ⏸ Stop Transcription
+- ☑ Enable Translation (checkbox)
+- Language selector (English, Russian, Turkish)
+
+### Demo Mode (`demo.py`)
+
+**Best for:** Testing without microphone, demonstrations, development
+
+**Features:**
+- Simulates realistic meeting conversation
+- No audio input required
+- Shows all AI capabilities
+- Generates sample output files
+- Feature demonstration mode
+
+**Use cases:**
+- Test Azure OpenAI integration
+- Verify AI prompt effectiveness
+- Demo to stakeholders
+- Development and debugging
+
+---
+
+## Configuration
+
+### Language Settings
+
+**Auto-detection (default):**
+```python
+# config.py
+SPEECH_LANGUAGE = "auto"
+CANDIDATE_LANGUAGES = ["en-US", "ru-RU", "tr-TR"]
+```
+
+**Specific language:**
+```python
+SPEECH_LANGUAGE = "en-US"  # English
+SPEECH_LANGUAGE = "ru-RU"  # Russian
+SPEECH_LANGUAGE = "tr-TR"  # Turkish
+```
+
+**Supported languages:** [See Azure documentation](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support)
+
+### Audio Settings
+
+```python
+# config.py - AudioSettings class
+CHUNK_DURATION = 5.0      # Recording chunk size (seconds)
+SAMPLE_RATE = 16000       # Audio sample rate (Hz) - Azure requires 16kHz
+CHUNK_SIZE = 1024         # Audio buffer size
+MIN_AUDIO_LENGTH = 1000   # Min bytes to attempt transcription
+```
+
+### Logging Settings
+
+```python
+# config.py - LogSettings class
+LOG_FILE = "transcriptions.log"  # Can override with env var
+SHOW_INTERIM_RESULTS = True      # Show partial transcriptions
+```
+
+**Environment override:**
+```bash
+export TRANSCRIPTION_LOG_FILE=/path/to/custom.log
+```
+
+### Speaker Diarization
+
+```python
+# config.py - AzureSpeechService class
+ENABLE_DIARIZATION = True   # Enable speaker identification
+MIN_SPEAKERS = 2            # Minimum expected speakers
+MAX_SPEAKERS = 10           # Maximum expected speakers
+```
+
+### Session Settings
+
+```python
+# config.py - SessionSettings class
+AUTO_PAUSE_SILENCE_DURATION = 60  # Auto-pause after 60 seconds of silence
+ENABLE_AUTO_PAUSE = True          # Enable auto-pause feature
+```
+
+---
+
+## Output & File Organization
+
+### Session-Based Structure
+
+Each meeting creates a unique session folder with timestamp:
+
+```
+sessions/
+├── session_20251011_143022/
+│   ├── transcriptions.log                       # All spoken text with timestamps
+│   ├── meeting_summary_20251011_143022.json     # Comprehensive data
+│   ├── meeting_summary_20251011_143022.md       # Human-readable report
+│   ├── follow-up-questions.txt                  # AI-generated questions
+│   ├── key-points.txt                           # Important topics
+│   ├── action-items.txt                         # Tasks and assignments
+│   └── decisions.txt                            # Recorded decisions
+├── session_20251011_150115/
+│   └── ...
+└── session_20251011_160245/
+    └── ...
+```
+
+### File Descriptions
+
+**`transcriptions.log`**
+- Plain text with timestamps
+- Source identification (microphone vs system audio)
+- Speaker labels when diarization enabled
+- Easy to parse and analyze
+
+**Format:**
+```
+[2025-10-11 14:23:15] [🎤 MICROPHONE] [👤 Speaker 1] Hello everyone
+[2025-10-11 14:23:18] [🔊 SYSTEM_AUDIO] [👤 Speaker 2] Hi there
+```
+
+**`meeting_summary_YYYYMMDD_HHMMSS.json`**
+- Complete session data in JSON format
+- All transcriptions with metadata
+- AI-generated insights
+- Session statistics
+- Programmatically accessible
+
+**`meeting_summary_YYYYMMDD_HHMMSS.md`**
+- Human-readable meeting report
+- Organized sections
+- Easy to share and review
+- Includes all key information
+
+**Individual insight files** (`*.txt`)
+- Real-time insights as they're generated
+- Chronological with timestamps
+- Separate file for each insight type
+- Easy to monitor during meeting
+
+**Example `action-items.txt`:**
+```
+=== 2025-10-11 14:25:30 ===
+1. John to finalize project timeline by Friday
+2. Sarah to schedule follow-up meeting with stakeholders
+3. Team to review requirements document by EOW
+
+=== 2025-10-11 14:28:45 ===
+1. Mike to prepare budget proposal for Q4
+```
+
+### Benefits of Session-Based Organization
+
+✅ **Isolation**: Each meeting completely separate  
+✅ **No Conflicts**: Concurrent sessions won't interfere  
+✅ **Easy Navigation**: Find meetings by timestamp  
+✅ **Clean Git**: All generated files automatically ignored  
+✅ **Comprehensive**: All related files in one place  
+✅ **Scalable**: Handles unlimited number of sessions  
+
+---
+
+## Virtual Audio Setup
+
+To capture system audio (from Zoom, Teams, YouTube, etc.), you need a virtual audio device that routes audio back to an input the app can record.
+
+### macOS Setup (Recommended: BlackHole)
+
+**1. Install BlackHole**
+- Download: [BlackHole GitHub](https://github.com/ExistentialAudio/BlackHole)
+- Install BlackHole 2ch (2-channel version)
+- Restart computer (recommended)
+
+**2. Create Multi-Output Device**
+
+a. Open "Audio MIDI Setup" (Cmd+Space, type "Audio MIDI Setup")
+
+b. Click "+" button → "Create Multi-Output Device"
+
+c. Check both:
+   - ✅ Your Headset/Speakers (e.g., "AirPods", "Jabra")
+   - ✅ BlackHole 2ch
+
+d. Click on "BlackHole 2ch" → Check "Drift Correction"
+
+e. Set as system output:
+   - Right-click "Multi-Output Device" → "Use This Device For Sound Output"
+   - OR: System Settings → Sound → Output → Multi-Output Device
+
+**3. Test**
+```bash
+# Say something through system audio
+say "Testing audio routing"
+
+# Start the app
+python main.py
+```
+
+Both your voice and system sounds should be transcribed!
+
+**Audio Flow:**
+```
+Your Voice → Microphone → App ✅
+System Audio → Multi-Output → Speakers ✅ (you hear it)
+                           → BlackHole → App ✅ (app captures it)
+```
+
+### Windows Setup
+
+**Option 1: VB-Cable** (Simple)
+- Download: [VB-Audio VB-Cable](https://vb-audio.com/Cable/)
+- Install and restart
+- Set VB-Cable as default output in Windows Sound Settings
+- Run app, select VB-Cable as system audio source
+
+**Option 2: VoiceMeeter** (Advanced)
+- Download: [VoiceMeeter](https://vb-audio.com/Voicemeeter/)
+- More control over audio routing
+- Professional-grade features
+- Follow setup wizard
+
+### Meeting App Compatibility
+
+✅ **Works with all meeting platforms:**
+- Microsoft Teams
+- Zoom
+- Google Meet
+- Discord
+- Slack
+- WhatsApp
+- Any app that produces audio
+
+**Configuration:**
+- Keep normal microphone in meeting app
+- Multi-Output handles routing at system level
+- No special meeting app settings needed
+
+---
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Azure Connection Errors**: Verify your API keys and endpoints in `.env`
-2. **Audio Device Not Found**: Check microphone permissions and device availability
-3. **AI Analysis Not Working**: Ensure Azure OpenAI service is properly configured
-4. **No System Audio**: Set up a virtual audio device for system sound capture
+**Problem: "AZURE_SPEECH_SERVICE_KEY not set"**
+- ✅ Check `.env` file exists in project root
+- ✅ Verify key is correct (no extra spaces)
+- ✅ Restart application after adding key
 
-### Performance Tips
+**Problem: No system audio captured**
+- ✅ Verify Multi-Output Device is system default
+- ✅ Check BlackHole is included in Multi-Output
+- ✅ Test with: `say "testing"` (macOS)
+- ✅ Restart app after changing audio settings
 
-- Ensure stable internet connection for optimal Azure service performance
-- Use a quality microphone for better transcription accuracy
-- Close unnecessary applications to reduce audio interference
-- Monitor token usage to manage Azure OpenAI costs
+**Problem: Wrong language detected**
+- ✅ Set specific language: `SPEECH_LANGUAGE=en-US` in `.env`
+- ✅ Adjust `CANDIDATE_LANGUAGES` in `config.py`
+- ✅ Use fewer candidate languages for faster detection
+
+**Problem: No AI insights generated**
+- ✅ Check Azure OpenAI credentials in `.env`
+- ✅ Verify internet connection
+- ✅ Check if text meets minimum length (`min_text_length`)
+- ✅ Look for errors in console output
+
+**Problem: Audio quality issues**
+- ✅ Enable "Drift Correction" in Multi-Output Device
+- ✅ Match sample rates (48000 Hz recommended)
+- ✅ Use headphones to prevent echo/feedback
+- ✅ Check microphone permissions in System Settings
+
+**Problem: High Azure costs**
+- ✅ Use specific language instead of auto-detection
+- ✅ Monitor usage in Azure Portal
+- ✅ Set up spending limits
+- ✅ Use demo mode for testing
+
+### Monitoring Tools
+
+**View live transcription log:**
+```bash
+tail -f sessions/session_YYYYMMDD_HHMMSS/transcriptions.log
+```
+
+**Search by speaker:**
+```bash
+grep "MICROPHONE" transcriptions.log
+grep "Speaker 1" transcriptions.log
+```
+
+**Watch for errors:**
+```bash
+python main.py 2>&1 | tee debug.log
+```
+
+**Check Azure connection:**
+```bash
+python -c "from azure_speech_service import AzureSpeechTranscriber; AzureSpeechTranscriber()"
+```
+
+---
+
+## Architecture
+
+### Design Principles
+
+- **Streaming First**: Direct Azure API integration for minimal latency
+- **Separation of Concerns**: Each component has single responsibility
+- **Thread Safety**: Async processing with proper synchronization
+- **Cloud Native**: Leverages Azure services for scalability
+- **Session Isolation**: Complete separation between meetings
+- **Extensibility**: Easy to add new AI features or output formats
+
+### Technology Stack
+
+**Core:**
+- Python 3.10+
+- PyAudio for audio capture
+- Azure Cognitive Services SDK
+
+**Azure Services:**
+- Azure Speech Service (Speech-to-Text with diarization)
+- Azure OpenAI Service (GPT-4 for insights)
+
+**GUI:**
+- PyQt6 (cross-platform)
+- Thread-safe signal/slot architecture
+
+**Dependencies:**
+- `azure-cognitiveservices-speech` - Speech recognition
+- `openai` - OpenAI SDK for Azure
+- `pyaudio` - Audio I/O
+- `python-dotenv` - Environment configuration
+- `colorama` - Console colors
+- `pytest` - Testing framework
+
+### Smart Features
+
+**Context Building:**
+- Maintains sliding window of recent conversation
+- AI sees full context for better insights
+- Configurable history length
+
+**Duplicate Prevention:**
+- Smart comparison of AI-generated content
+- Avoids repetitive suggestions
+- Improves insight quality
+
+**Real-time Processing:**
+- Non-blocking AI analysis
+- Separate threads for transcription and insights
+- Queue-based architecture
+
+**Session Management:**
+- Automatic timestamp-based folders
+- All related files grouped together
+- Easy cleanup and archival
+
+---
+
+## Development
+
+### Project Structure
+
+```
+kata_ai.meeting_assistant.clever_foxes/
+├── main.py                      # Console application entry point
+├── gui_app.py                   # GUI application entry point
+├── demo.py                      # Demo without audio input
+├── config.py                    # Centralized configuration
+├── prompts.py                   # AI prompt templates
+├── azure_speech_service.py      # Azure Speech Service integration
+├── meeting_assistant_service.py # AI analysis orchestration
+├── summary_manager.py           # Session and file management
+├── transcription_logger.py      # Enhanced logging
+├── audio_recorder.py            # Audio device handling
+├── llm_service.py               # Azure OpenAI communication
+├── vad_detector.py              # Voice Activity Detection (legacy)
+├── pyproject.toml               # Dependencies (uv)
+├── .env                         # Environment variables (create this)
+├── tests/                       # Test suite
+│   ├── test_llm_communicator.py
+│   └── test_meeting_assistant.py
+├── sessions/                    # Generated session folders (gitignored)
+└── static/                      # GUI assets
+    └── fox.png
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_meeting_assistant.py
+
+# Run with verbose output
+pytest -v
+
+# Run specific test
+pytest tests/test_llm_communicator.py::TestLLMCommunicator::test_basic_interaction
+```
+
+### Code Quality
+
+**Linting:**
+```bash
+# Run linters (add to pyproject.toml as needed)
+ruff check .
+```
+
+**Type Checking:**
+```bash
+mypy *.py
+```
+
+### Contributing Guidelines
+
+1. **Branch naming**: `feature/description` or `fix/description`
+2. **Commit messages**: Clear and descriptive
+3. **Documentation**: Update README for new features
+4. **Testing**: Add tests for new functionality
+5. **Configuration**: Add new settings to `config.py`
+
+### Future Enhancements
+
+**Planned features:**
+- [ ] Multiple simultaneous translations
+- [ ] Custom AI prompt templates via UI
+- [ ] Meeting calendar integration
+- [ ] Participant name recognition
+- [ ] Post-meeting email summaries
+- [ ] Integration with task management tools
+- [ ] Support for additional LLM providers
+- [ ] Offline transcription mode
+- [ ] Mobile companion app
+
+---
+
+## License & Credits
+
+**Team:** Clever Foxes  
+**Challenge:** Kata.ai Meeting Assistant  
+**Year:** 2025  
+
+**Technologies:**
+- Microsoft Azure (Speech Service, OpenAI Service)
+- Python & PyQt6
+- BlackHole Virtual Audio (macOS)
+
+**Special Thanks:**
+- Azure Cognitive Services team
+- OpenAI for GPT-4
+- PyAudio and PyQt6 communities
+
+---
+
+## Support & Resources
+
+**Documentation:**
+- [Azure Speech Service Docs](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/)
+- [Azure OpenAI Service Docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/)
+- [PyQt6 Documentation](https://www.riverbankcomputing.com/static/Docs/PyQt6/)
+
+**Getting Help:**
+1. Check this README thoroughly
+2. Review troubleshooting section
+3. Check console output for error messages
+4. Verify Azure service status
+5. Test with demo mode first
+
+**Performance Tips:**
+- Use wired internet for stable Azure connection
+- Quality microphone improves transcription accuracy
+- Close CPU-intensive apps during meetings
+- Monitor Azure usage to manage costs
+- Use specific languages when possible (faster than auto-detect)
+
+---
+
+**Happy Meeting! 🦊🎤**
