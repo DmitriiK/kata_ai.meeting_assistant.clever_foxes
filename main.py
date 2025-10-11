@@ -19,15 +19,20 @@ from azure_speech_service import AzureSpeechTranscriber
 from transcription_logger import TranscriptionLogger
 from config import AudioSettings, LogSettings
 from audio_recorder import AudioRecorder
+from meeting_assistant_service import MeetingAssistantService
 
 
 class StreamingTranscriptionApp:
     def __init__(self):
         """Initialize the streaming application."""
-        print("🚀 Initializing Streaming Transcription App...")
+        print("🚀 Initializing AI-Powered Meeting Assistant...")
         
         # Initialize components
         self.logger = TranscriptionLogger(log_file=LogSettings.LOG_FILE)
+        self.meeting_assistant = MeetingAssistantService()
+        
+        # Update logger with session directory once meeting starts
+        self.session_started = False
         # VAD removed - Azure has built-in silence detection
         
         # Initialize audio
@@ -51,6 +56,11 @@ class StreamingTranscriptionApp:
         # Set up signal handler
         signal.signal(signal.SIGINT, self.signal_handler)
         
+        print("✅ AI Meeting Assistant initialized")
+        print("   ☁️  Azure Speech Service in streaming mode")
+        print("   🤖 AI-powered meeting insights and assistance")
+        print("   ⚡ Real-time transcription with minimal delay!")
+        print("   🚀 Direct audio streaming (no VAD filtering)")
         print("✅ Conversation transcription service initialized")
         print("   ☁️  Azure Conversation Transcriber API")
         print("   👥 Speaker diarization enabled")
@@ -62,6 +72,13 @@ class StreamingTranscriptionApp:
         """Handle Ctrl+C gracefully."""
         print("\n🛑 Stopping application...")
         self.is_running = False
+        
+        # End meeting session and generate summary
+        print("\n📋 Ending meeting session and generating summary...")
+        summary_file = self.meeting_assistant.end_session()
+        if summary_file:
+            print(f"✅ Meeting summary saved to: {summary_file}")
+        
         self.cleanup()
         sys.exit(0)
     
@@ -75,7 +92,22 @@ class StreamingTranscriptionApp:
             speaker_id: Speaker identifier
         """
         if text and text.strip():
-            self.logger.log_transcription(text, source, speaker_id)
+            # Update logger session directory if not already done
+            if not self.session_started and self.meeting_assistant.session_active:
+                session_dir = str(self.meeting_assistant.summary_manager.session_output_dir)
+                self.logger.update_session_dir(session_dir)
+                self.session_started = True
+            
+            self.logger.log_transcription(text, source)
+            
+            # Process with AI meeting assistant
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            insights = self.meeting_assistant.add_transcription(text, source, timestamp)
+            
+            # Display AI insights if any were generated
+            if insights:
+                self.meeting_assistant.display_insights(insights)
     
     def interim_callback(
         self, text: str, source: str, speaker_id: str = None
@@ -188,6 +220,13 @@ class StreamingTranscriptionApp:
         self.is_running = True
         
         print("\n" + "=" * 60)
+        print("🤖 AI-POWERED MEETING ASSISTANT")
+        print("=" * 60)
+        print("📝 Real-time transcription from microphone and system audio")
+        print("🤖 AI-powered follow-up questions and meeting insights")
+        print("📋 Automatic summarization of key points and decisions")
+        print("⚡ No chunking delays - transcribes as you speak!")
+        print("🛑 Press Ctrl+C to stop and generate meeting summary")
         print("🎙️  LIVE CONVERSATION TRANSCRIPTION")
         print("=" * 60)
         print("📝 Transcription with speaker identification")
