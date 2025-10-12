@@ -17,41 +17,77 @@ class TranscriptionLogger:
         Initialize logger.
         
         Args:
-            log_file: Base name for log file
+            log_file: Base name for log file (conversations only)
             session_dir: Optional session directory for saving logs
         """
         self.base_log_file = log_file
         self.session_dir = session_dir
         
-        # Determine actual log file path
+        # Track interim text per source
+        self.last_interim_text = {}
+        
+        # Determine actual log file paths
         if session_dir and os.path.exists(session_dir):
             self.log_file = os.path.join(session_dir, log_file)
+            self.system_log_file = os.path.join(session_dir, "system_events.log")
         else:
             self.log_file = log_file
+            self.system_log_file = "system_events.log"
         
-        # Create log file if it doesn't exist
+        # Create conversation log file if it doesn't exist
         if not os.path.exists(self.log_file):
             # Ensure directory exists
             os.makedirs(os.path.dirname(self.log_file), exist_ok=True) if os.path.dirname(self.log_file) else None
             with open(self.log_file, 'w') as f:
                 start_time = datetime.datetime.now()
-                f.write(f"=== Transcription Log Started at {start_time} ===\n")
+                f.write(f"=== Conversation Log Started at {start_time} ===\n")
+        
+        # Create system events log file if it doesn't exist
+        if not os.path.exists(self.system_log_file):
+            os.makedirs(os.path.dirname(self.system_log_file), exist_ok=True) if os.path.dirname(self.system_log_file) else None
+            with open(self.system_log_file, 'w') as f:
+                start_time = datetime.datetime.now()
+                f.write(f"=== System Events Log Started at {start_time} ===\n")
     
     def update_session_dir(self, session_dir: str):
         """Update the session directory for log file location."""
         self.session_dir = session_dir
         if session_dir:
             new_log_file = os.path.join(session_dir, self.base_log_file)
+            new_system_log = os.path.join(session_dir, "system_events.log")
+            
             if new_log_file != self.log_file:
                 self.log_file = new_log_file
-                # Create new log file if it doesn't exist
+                self.system_log_file = new_system_log
+                
+                # Create new conversation log file
                 if not os.path.exists(self.log_file):
-                    os.makedirs(os.path.dirname(self.log_file), exist_ok=True) if os.path.dirname(self.log_file) else None
+                    log_dir = os.path.dirname(self.log_file)
+                    if log_dir:
+                        os.makedirs(log_dir, exist_ok=True)
                     with open(self.log_file, 'w') as f:
                         start_time = datetime.datetime.now()
-                        f.write(f"=== Transcription Log Started at {start_time} ===\n")
+                        header = (f"=== Conversation Log "
+                                  f"Started at {start_time} ===\n")
+                        f.write(header)
+                
+                # Create new system events log file
+                if not os.path.exists(self.system_log_file):
+                    sys_log_dir = os.path.dirname(self.system_log_file)
+                    if sys_log_dir:
+                        os.makedirs(sys_log_dir, exist_ok=True)
+                    with open(self.system_log_file, 'w') as f:
+                        start_time = datetime.datetime.now()
+                        header = (f"=== System Events Log "
+                                  f"Started at {start_time} ===\n")
+                        f.write(header)
     
-    def log_interim_result(self, text: str, source: str = "microphone"):
+    def log_interim_result(
+        self,
+        text: str,
+        source: str = "microphone",
+        speaker_id: Optional[str] = None
+    ):
         """
         Log interim/partial transcription result (console only).
         Shows what's being recognized in real-time as user speaks.
@@ -60,13 +96,14 @@ class TranscriptionLogger:
         Args:
             text: Partial transcribed text
             source: Source of the audio
-            speaker_id: Speaker identifier (e.g., "Speaker 1", "Speaker 2")
+            speaker_id: Speaker identifier (e.g., "Speaker 1")
         """
         if not text:
             return
         
         # Create a unique key for this source
-        source_key = f"{source}:{speaker_id if speaker_id else 'unknown'}"
+        key = f"{source}:{speaker_id if speaker_id else 'unknown'}"
+        source_key = key
         
         # Get the last interim text for this source
         last_text = self.last_interim_text.get(source_key, "")
@@ -179,9 +216,25 @@ class TranscriptionLogger:
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(f"{log_entry}\n")
     
+    def log_system_event(self, message: str):
+        """
+        Log system event (app starts, device detection, etc).
+        Goes to system_events.log only, not to conversation log.
+        
+        Args:
+            message: System event message
+        """
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"[{timestamp}] [SYSTEM] {message}"
+        print(f"🔧 {log_entry}")
+        
+        with open(self.system_log_file, 'a', encoding='utf-8') as f:
+            f.write(f"{log_entry}\n")
+    
     def log_info(self, message: str):
         """
-        Log informational message.
+        Log informational message to conversation log.
+        Use for session markers, language changes, etc.
         
         Args:
             message: Info message to log

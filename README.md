@@ -45,6 +45,8 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 - **Non-blocking Processing**: Translation and TTS run in separate threads
 - **Dedicated Display**: Translations appear in separate window with timestamps
 
+**📖 See [Audio Device Setup Guide](AUDIO_DEVICE_SETUP.md) for complete configuration instructions.**
+
 ### 📊 Advanced Meeting Management
 - **Session-based Tracking**: Each meeting creates its own isolated folder with timestamp
 - **Comprehensive Analytics**: Meeting statistics and performance metrics
@@ -300,118 +302,25 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 
 ## Using TTS Translation Feature
 
+For complete setup instructions, troubleshooting, and advanced configurations, see:
+
+**📖 [Audio Device Setup Guide](AUDIO_DEVICE_SETUP.md)**
+
+### Quick Start
+
+1. **Install BlackHole**: `brew install blackhole-2ch` (restart Mac after)
+2. **Configure meeting app**: Set microphone to "BlackHole 2ch"
+3. **Enable in app**: Check ☑ "Enable TTS to Microphone" 
+4. **Select language**: Choose target language from dropdown
+5. **Speak**: Wait for translation → Press "Speak to Mic"
+6. **Result**: Your peer hears the translation! ✅
+
 ### How It Works
 
-The TTS translation feature allows you to **speak translations into meeting apps** (Teams, Zoom, etc.) as if you're speaking directly into your microphone. Perfect for real-time multilingual communication!
-
-**Workflow:**
-1. You speak in your language → Transcribed
-2. Text translated by LLM → Displayed in Translation window
-3. Translation converted to speech → Buffered in memory
-4. You press "Speak Translation" → Audio routes to virtual microphone
-5. Meeting participants hear the translation in target language!
-
-### Setup Requirements
-
-**Virtual Audio Device Required:**
-- **macOS**: Install [BlackHole](https://github.com/ExistentialAudio/BlackHole)
-- **Windows**: Install [VB-Cable](https://vb-audio.com/Cable/) or VoiceMeeter
-- **Linux**: Use PulseAudio loopback module
-
-**Meeting App Configuration:**
-1. In Teams/Zoom audio settings
-2. Select **BlackHole** (or your virtual device) as **Microphone**
-3. Keep your real mic for monitoring (if needed)
-
-### Using the Feature
-
-1. **Enable TTS to Microphone**
-   - Check ☑ "Enable TTS to Microphone" checkbox
-   - Language selector and Speak button appear
-
-2. **Select Target Language**
-   - Choose from: English, Russian, Turkish
-   - Voice automatically selected for language
-
-3. **Speak and Let It Buffer**
-   - Speak into your microphone
-   - Watch transcription → translation → "Generating..." appears
-   - Button changes to "Speak to Mic" when ready
-   - Translated text displays as "Speaker X (translated)" in purple color
-
-4. **Press "Speak to Mic"**
-   - **You hear the translation** through your speakers/headphones
-   - **Meeting participants hear it** through virtual microphone
-   - Button changes to "Stop Speaking"
-   - Audio routes to BOTH outputs simultaneously!
-
-5. **Stop If Needed**
-   - Press "Stop Speaking" to interrupt playback
-   - Buffer clears, ready for next translation
-
-### Dual Audio Output
-
-The TTS audio is routed to **two destinations simultaneously**:
-
-- **Your speakers/headphones**: So you can hear what translation is being sent
-- **Virtual microphone**: So meeting participants hear it as if you spoke it
-
-This allows you to:
-- ✅ Monitor what's being said in the meeting
-- ✅ Verify the translation before/during playback
-- ✅ Seamlessly communicate across language barriers
-- ✅ Stay engaged while translation plays
-
-### Button States
-
-| Button Text | State | Action |
-|-------------|-------|--------|
-| "Speak to Mic" (disabled) | No audio buffered | Wait for translation |
-| "Generating..." (disabled) | TTS in progress | Wait for audio generation |
-| "Speak to Mic" (enabled) | Ready to speak | Click to play to both outputs |
-| "Stop Speaking" (enabled) | Currently playing | Click to stop and clear |
-
-### Translation Display
-
-Translations are displayed with special formatting to distinguish them:
-- **Color**: Purple text (`#9932CC`)
-- **Label**: Shows as "[Speaker X (translated)]"
-- **Source icon**: Preserves original source (🎤 MIC or 🔊 SYSTEM)
-- **Timestamp**: Shows when translation occurred
-
-Example:
 ```
-[2025-10-11 14:23:15] [🎤 MIC][Speaker 0 (translated)] Attention. Let's go
+Your Speech → Transcription → LLM Translation → Azure TTS → 
+BlackHole Virtual Mic → Meeting App → Peer Hears Translation! 🌍
 ```
-
-### Technical Architecture
-
-**Pipeline Flow:**
-```
-Speech Audio → Transcription → LLM Translation → TTS Generation → 
-Audio Buffer → [User clicks Speak] → Virtual Microphone → Meeting App
-```
-
-**State Machine:**
-```
-IDLE → BUFFERING → READY → SPEAKING → IDLE
-```
-
-**Components:**
-- `translation_tts_controller.py` - Main coordinator with state machine
-- `tts_audio_buffer.py` - TTS generation and memory buffering (async)
-- `tts_audio_router.py` - Audio routing to virtual microphone device
-- `tts_voice_manager.py` - Voice configuration management from `tts_voices.yml`
-
-**Key Features:**
-- Non-blocking async TTS generation
-- Thread-safe buffer operations
-- User-controlled playback timing
-- Automatic voice selection per language
-- Clean state management with callbacks
-- **Dual audio output**: Simultaneous routing to speakers and virtual mic
-- Deadlock-free state transitions
-- Visual error indicators with detailed tooltips
 
 ---
 
@@ -645,6 +554,12 @@ System Audio → Multi-Output → Speakers ✅ (you hear it)
 - ✅ Check BlackHole is included in Multi-Output
 - ✅ Test with: `say "testing"` (macOS)
 - ✅ Restart app after changing audio settings
+
+**Problem: TTS translation issues**
+- See detailed troubleshooting in [Audio Device Setup Guide](AUDIO_DEVICE_SETUP.md#troubleshooting)
+- ✅ Verify meeting app microphone is set to "BlackHole 2ch"
+- ✅ Check BlackHole is installed: `brew list blackhole-2ch`
+- ✅ Restart meeting app after changing audio device
 
 **Problem: Wrong language detected**
 - ✅ Set specific language: `SPEECH_LANGUAGE=en-US` in `.env`

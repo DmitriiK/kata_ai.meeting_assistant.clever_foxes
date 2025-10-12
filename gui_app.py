@@ -10,6 +10,7 @@ Features:
 - Auto-scroll to latest results
 """
 import sys
+import os
 import threading
 import datetime
 import time
@@ -20,7 +21,7 @@ from PyQt6.QtWidgets import (
     QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
-from PyQt6.QtGui import QFont, QTextCursor, QColor, QIcon
+from PyQt6.QtGui import QFont, QTextCursor, QColor, QIcon, QMovie, QPixmap
 from azure_speech_service import AzureSpeechTranscriber
 from transcription_logger import TranscriptionLogger
 from config import AudioSettings, LogSettings, SessionSettings
@@ -29,6 +30,7 @@ from translation_tts_controller import TranslationTTSController
 import llm_service
 import prompts
 from queue import Queue, Empty
+from audio_mixer import start_mixer, stop_mixer
 
 
 class SignalEmitter(QObject):
@@ -62,6 +64,7 @@ class TranscriptionGUI(QMainWindow):
         # Session timer and auto-pause
         self.session_start_time = None
         self.session_duration = 0
+        self.session_folder = None
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
         self.last_speech_time = None
@@ -77,6 +80,24 @@ class TranscriptionGUI(QMainWindow):
         self.tts_to_mic_enabled = False
         self.tts_controller = TranslationTTSController()
         self.tts_controller.on_state_change = self.on_tts_state_change
+        
+        # Duplicate detection (to filter SYSTEM echoes of MIC audio)
+        self.recent_mic_transcriptions = []  # [(text, timestamp), ...]
+        self.duplicate_window_seconds = 3.0  # Time window for duplicates
+        
+        # Translation tracking (to identify SYSTEM texts as translations)
+        self.queued_for_translation = []  # [(text, timestamp), ...]
+        self.translation_window_seconds = 30.0  # Max time
+        
+        # Audio Mixer (for routing mic + TTS to virtual device)
+        self.mixer_started = False
+        print("🔄 Starting audio mixer...")
+        if start_mixer():
+            self.mixer_started = True
+            print("✅ Audio mixer started successfully")
+        else:
+            print("⚠️ Audio mixer failed to start")
+            print("   TTS to Mic feature may not work")
         
         # Error tracking
         self.last_translation_error = None
@@ -124,13 +145,6 @@ class TranscriptionGUI(QMainWindow):
         title_label.setFont(title_font)
         header_layout.addWidget(title_label)
         
-        header_layout.addStretch()
-        
-        # Status indicator
-        self.status_label = QLabel("● Stopped")
-        self.status_label.setStyleSheet("color: red; font-size: 12pt;")
-        header_layout.addWidget(self.status_label)
-        
         # Warning indicator for translation errors (initialized here, added to footer later)
         self.warning_label = QLabel("")
         self.warning_label.setStyleSheet(
@@ -142,67 +156,99 @@ class TranscriptionGUI(QMainWindow):
         self.timer_label = QLabel("⏱️ 00:00:00")
         self.timer_label.setStyleSheet("font-size: 12pt;")
         
+        header_layout.addStretch()
+        
+        # Control buttons in vertical layout (left side)
+        control_layout = QVBoxLayout()
+        
         # Start/Stop button
         self.start_stop_btn = QPushButton("▶ Start Transcription")
         self.start_stop_btn.clicked.connect(self.toggle_transcription)
         self.start_stop_btn.setMinimumWidth(180)
-        header_layout.addWidget(self.start_stop_btn)
+        control_layout.addWidget(self.start_stop_btn)
         
-        # Clear buttons
-        clear_interim_btn = QPushButton("Clear Interim")
-        clear_interim_btn.clicked.connect(self.clear_interim)
-        clear_interim_btn.setMinimumWidth(120)
-        header_layout.addWidget(clear_interim_btn)
-        
+        # Clear Final button
         clear_final_btn = QPushButton("Clear Final")
         clear_final_btn.clicked.connect(self.clear_final)
-        clear_final_btn.setMinimumWidth(120)
-        header_layout.addWidget(clear_final_btn)
+        clear_final_btn.setMinimumWidth(180)
+        control_layout.addWidget(clear_final_btn)
+        
+        header_layout.addLayout(control_layout)
+        
+        # Fox icon/animation (top right corner)
+        self.fox_label = QLabel()
+        self.fox_label.setFixedSize(60, 60)
+        self.fox_label.setScaledContents(True)
+        
+        # Load static fox image
+        self.static_fox = QPixmap("static/fox.png")
+        self.fox_label.setPixmap(self.static_fox)
+        
+        # Load animated fox gif
+        self.animated_fox = QMovie("static/dancing_fox.gif")
+        self.animated_fox.setScaledSize(self.fox_label.size())
+        
+        header_layout.addWidget(self.fox_label)
         
         main_layout.addLayout(header_layout)
         
-        # Translation controls - Feature 1: Text Translation
-        translation_text_layout = QHBoxLayout()
+        # ===== FEATURE GROUPS LAYOUT =====
+        features_layout = QHBoxLayout()
         
-        self.translate_text_checkbox = QCheckBox("Enable Text Translation")
+        # GROUP 1: Speech to Text Translation
+        speech_to_text_group = QGroupBox("📝 Speech to Text Translation")
+        speech_to_text_layout = QVBoxLayout()
+        
+        self.translate_text_checkbox = QCheckBox("Enable Translation")
         self.translate_text_checkbox.stateChanged.connect(
             self.toggle_text_translation
         )
-        translation_text_layout.addWidget(self.translate_text_checkbox)
+        speech_to_text_layout.addWidget(self.translate_text_checkbox)
         
-        translation_text_layout.addWidget(QLabel("Target Language:"))
+        lang_layout = QHBoxLayout()
+        lang_layout.addWidget(QLabel("Target Language:"))
         self.text_translation_language = QComboBox()
-        self.text_translation_language.addItems(["English", "Russian", "Turkish"])
-        translation_text_layout.addWidget(self.text_translation_language)
+        self.text_translation_language.addItems([
+            "English", "Russian", "Turkish"
+        ])
+        lang_layout.addWidget(self.text_translation_language)
+        speech_to_text_layout.addLayout(lang_layout)
         
-        translation_text_layout.addStretch()
-        main_layout.addLayout(translation_text_layout)
+        speech_to_text_group.setLayout(speech_to_text_layout)
+        features_layout.addWidget(speech_to_text_group)
         
-        # TTS to Microphone controls - Feature 2: Speak Translation to Mic
-        tts_mic_layout = QHBoxLayout()
+        # GROUP 2: Text to Speech Translation
+        text_to_speech_group = QGroupBox("🔊 Text to Speech Translation")
+        text_to_speech_layout = QVBoxLayout()
         
-        self.tts_mic_checkbox = QCheckBox("Enable TTS to Microphone")
+        self.tts_mic_checkbox = QCheckBox("Enable TTS to Mic")
         self.tts_mic_checkbox.stateChanged.connect(
             self.toggle_tts_to_mic
         )
-        tts_mic_layout.addWidget(self.tts_mic_checkbox)
+        text_to_speech_layout.addWidget(self.tts_mic_checkbox)
         
-        tts_mic_layout.addWidget(QLabel("TTS Language:"))
+        tts_lang_layout = QHBoxLayout()
+        tts_lang_layout.addWidget(QLabel("TTS Language:"))
         self.tts_language_selector = QComboBox()
-        self.tts_language_selector.addItems(["English", "Russian", "Turkish"])
+        self.tts_language_selector.addItems([
+            "English", "Russian", "Turkish"
+        ])
         self.tts_language_selector.currentTextChanged.connect(
             self.on_tts_language_changed
         )
-        tts_mic_layout.addWidget(self.tts_language_selector)
+        tts_lang_layout.addWidget(self.tts_language_selector)
+        text_to_speech_layout.addLayout(tts_lang_layout)
         
         self.speak_btn = QPushButton("Speak to Mic")
-        self.speak_btn.setEnabled(False)  # Only enabled during transcription
+        self.speak_btn.setEnabled(False)
         self.speak_btn.setMinimumWidth(150)
         self.speak_btn.clicked.connect(self.toggle_speak_translation)
-        tts_mic_layout.addWidget(self.speak_btn)
+        text_to_speech_layout.addWidget(self.speak_btn)
         
-        tts_mic_layout.addStretch()
-        main_layout.addLayout(tts_mic_layout)
+        text_to_speech_group.setLayout(text_to_speech_layout)
+        features_layout.addWidget(text_to_speech_group)
+        
+        main_layout.addLayout(features_layout)
         
         # Interim Results Group (single line)
         interim_group = QGroupBox("⚡ Interim Results (Live Transcription)")
@@ -290,7 +336,10 @@ class TranscriptionGUI(QMainWindow):
     def append_final(
         self, text: str, source: str, speaker_id: str, timestamp: str
     ):
-        """Append text to final results window."""
+        """Append text to final results window and clear interim."""
+        # Clear interim results since text is now final
+        self.interim_text.clear()
+        
         # Add separator
         self.final_text.insertHtml(
             '<span style="color: #999999;">'
@@ -348,6 +397,22 @@ class TranscriptionGUI(QMainWindow):
         self.tts_to_mic_enabled = bool(state)
         
         if self.tts_to_mic_enabled:
+            # Check if mixer is running
+            if not self.mixer_started:
+                QMessageBox.warning(
+                    self,
+                    "Audio Mixer Not Running",
+                    "The audio mixer failed to start.\n\n"
+                    "TTS to Mic requires the audio mixer to route both "
+                    "your microphone and TTS audio to the virtual device.\n\n"
+                    "Please check:\n"
+                    "1. BlackHole (macOS) or VB-CABLE (Windows) is installed\n"
+                    "2. Your microphone device is available\n"
+                    "3. Check terminal for error messages"
+                )
+                self.tts_mic_checkbox.setChecked(False)
+                return
+            
             self.translation_group.show()
             # Initialize TTS controller with selected language
             self.tts_controller.set_language(
@@ -568,13 +633,13 @@ class TranscriptionGUI(QMainWindow):
         scrollbar.setValue(scrollbar.maximum())
     
     def update_status(self, running: bool):
-        """Update status indicator."""
+        """Update status indicator (fox animation) and buttons."""
         if running:
-            self.status_label.setText("● Recording")
-            self.status_label.setStyleSheet(
-                "color: green; font-size: 12pt;"
-            )
             self.start_stop_btn.setText("⏸ Stop Transcription")
+            
+            # Start dancing fox animation
+            self.fox_label.setMovie(self.animated_fox)
+            self.animated_fox.start()
             
             # Clear any previous warnings when starting new session
             self.signals.clear_warning.emit()
@@ -589,6 +654,11 @@ class TranscriptionGUI(QMainWindow):
                     )
                     worker_thread.start()
             
+            # Create session folder for logs
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.session_folder = f"sessions/session_{timestamp}"
+            os.makedirs(self.session_folder, exist_ok=True)
+            
             # Start timers
             self.session_start_time = time.time()
             self.last_speech_time = time.time()
@@ -596,9 +666,11 @@ class TranscriptionGUI(QMainWindow):
             if SessionSettings.ENABLE_AUTO_PAUSE:
                 self.auto_pause_timer.start(5000)  # Check every 5 seconds
         else:
-            self.status_label.setText("● Stopped")
-            self.status_label.setStyleSheet("color: red; font-size: 12pt;")
             self.start_stop_btn.setText("▶ Start Transcription")
+            
+            # Stop dancing fox animation and show static image
+            self.animated_fox.stop()
+            self.fox_label.setPixmap(self.static_fox)
             
             # Stop translation worker thread
             self.translation_worker_running = False
@@ -647,24 +719,88 @@ class TranscriptionGUI(QMainWindow):
     
     def result_callback(self, text: str, source: str, speaker_id: str = None):
         """Callback for final transcription results."""
+        print(f"🔔 result_callback called: source={source}, text={text[:20]}...")
         if text and text.strip():
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            current_time = time.time()
+            
+            # FIRST: Track MIC transcriptions BEFORE any filtering
+            if "MIC" in source:
+                self.recent_mic_transcriptions.append((text, current_time))
+                # Keep only recent entries (last 10 seconds)
+                self.recent_mic_transcriptions = [
+                    (t, ts) for t, ts in self.recent_mic_transcriptions
+                    if current_time - ts < 10.0
+                ]
+                print(f"📝 Tracked MIC: {text[:30]}... (total: {len(self.recent_mic_transcriptions)})")
+            
+            # SECOND: Check if SYSTEM is a duplicate of MIC (audio mixer echo)
+            if "SYSTEM" in source and self.mixer_started:
+                print(f"🔍 Checking SYSTEM for duplicate: {text[:30]}...")
+                # Check if this matches a recent MIC transcription
+                is_duplicate_echo = False
+                for mic_text, mic_time in self.recent_mic_transcriptions:
+                    # Same text within duplicate window?
+                    time_diff = current_time - mic_time
+                    if time_diff < self.duplicate_window_seconds:
+                        # Fuzzy match (allow minor variations in punctuation)
+                        mic_normalized = mic_text.lower().strip().replace(
+                            " ", ""
+                        ).replace(".", "").replace(",", "")
+                        sys_normalized = text.lower().strip().replace(
+                            " ", ""
+                        ).replace(".", "").replace(",", "")
+                        
+                        if mic_normalized == sys_normalized:
+                            is_duplicate_echo = True
+                            break
+                
+                if is_duplicate_echo:
+                    # This is SYSTEM echo of MIC, skip it
+                    print(f"🔇 Filtered SYSTEM duplicate: {text[:50]}...")
+                    return
+            
+            # THIRD: Check if SYSTEM is actually a TTS translation
+            # TTS translations are NOT in the queued list (not MIC audio)
+            # and they appear when TTS is active
+            if "SYSTEM" in source:
+                # Check if this text was from original speech (MIC/SYSTEM)
+                was_original_speech = False
+                for queued_text, queued_time in self.queued_for_translation:
+                    # Check if this matches queued original text
+                    if (text.lower().strip().replace(" ", "") ==
+                            queued_text.lower().strip().replace(" ", "")):
+                        was_original_speech = True
+                        break
+                
+                # If NOT original speech, it must be a translation
+                if not was_original_speech and self.tts_to_mic_enabled:
+                    # This is a TTS translation - label it differently
+                    speaker_id = "🌍 Translated"
+                    source = "TTS"
             
             # Emit signal for thread-safe GUI update
             self.signals.append_final.emit(text, source, speaker_id, timestamp)
             
             # Update last speech time for auto-pause
-            self.last_speech_time = time.time()
+            self.last_speech_time = current_time
             
             # Queue for translation if any translation feature enabled
             translation_needed = (
                 self.text_translation_enabled or self.tts_to_mic_enabled
             )
-            if translation_needed and text.strip():
+            if translation_needed and text.strip() and source != "TTS":
                 if self.translation_queue.qsize() < 5:  # Limit queue size
                     self.translation_queue.put(
                         (text, source, speaker_id, timestamp)
                     )
+                    # Track that this text was queued for translation
+                    self.queued_for_translation.append((text, current_time))
+                    # Keep only recent entries
+                    self.queued_for_translation = [
+                        (t, ts) for t, ts in self.queued_for_translation
+                        if current_time - ts < self.translation_window_seconds
+                    ]
             
             # Also log to file (translations are NOT logged)
             self.logger.log_transcription(text, source, speaker_id)
@@ -887,6 +1023,12 @@ class TranscriptionGUI(QMainWindow):
         
         # Cleanup TTS controller
         self.tts_controller.cleanup()
+        
+        # Stop audio mixer
+        if self.mixer_started:
+            print("⏹️ Stopping audio mixer...")
+            stop_mixer()
+            self.mixer_started = False
         
         event.accept()
 

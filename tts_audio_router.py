@@ -1,12 +1,14 @@
 """
 TTS Audio Router
-Routes buffered TTS audio to virtual microphone device.
+Routes buffered TTS audio to virtual microphone device via audio mixer.
 Supports playback control (start/stop).
 """
 import pyaudio
 from threading import Thread, Event, Lock
 from typing import Optional
 import time
+import numpy as np
+from audio_mixer import get_mixer
 
 
 class TTSAudioRouter:
@@ -74,16 +76,23 @@ class TTSAudioRouter:
         on_stopped: Optional[callable] = None
     ):
         """
-        Play audio data to both virtual device and default output.
-        This allows you to hear the translation while routing to mic.
+        Play audio data via mixer (mixed with microphone).
+        Routes to virtual device to act as microphone input.
+        
+        The audio mixer continuously routes your microphone to BlackHole
+        and mixes in TTS audio when playing. This allows peers to hear
+        BOTH your real voice AND TTS translations.
         
         Args:
             audio_data: Audio data to play (16kHz, mono, PCM16)
-            on_complete: Optional callback when playback completes normally
-            on_stopped: Optional callback when playback is stopped early
+            on_complete: Optional callback when playback completes
+            on_stopped: Optional callback when playback is stopped
         """
-        if self.virtual_device_index is None:
-            print("❌ Cannot play: virtual device not found")
+        mixer = get_mixer()
+        
+        if not mixer.is_running:
+            print("❌ Cannot play: audio mixer not running")
+            print("   Call audio_mixer.start_mixer() first")
             if on_stopped:
                 on_stopped()
             return
@@ -98,62 +107,50 @@ class TTSAudioRouter:
                 self.stop_event.clear()
                 
                 try:
-                    # Open TWO streams: one to virtual mic, one to speakers
-                    virtual_stream = self.audio.open(
-                        format=pyaudio.paInt16,
-                        channels=1,
-                        rate=16000,  # Azure TTS outputs at 16kHz
-                        output=True,
-                        output_device_index=self.virtual_device_index,
-                        frames_per_buffer=1024
+                    # Convert 16kHz mono to 48kHz stereo for mixer
+                    print(
+                        f"🎵 Queuing {len(audio_data)} bytes "
+                        f"TTS to mixer..."
                     )
                     
-                    # Open stream to default output (your speakers/headphones)
-                    speaker_stream = self.audio.open(
-                        format=pyaudio.paInt16,
-                        channels=1,
-                        rate=16000,
-                        output=True,
-                        frames_per_buffer=1024
+                    # Convert bytes to numpy array
+                    audio_16khz = np.frombuffer(
+                        audio_data, dtype=np.int16
                     )
                     
-                    # Play audio in chunks to BOTH streams simultaneously
-                    chunk_size = 1024 * 2  # 2 bytes per sample (16-bit)
-                    offset = 0
+                    # Resample from 16kHz to 48kHz (mixer's rate)
+                    # Simple linear interpolation (3x upsampling)
+                    audio_48khz = np.repeat(audio_16khz, 3)
                     
-                    while offset < len(audio_data):
-                        # Check if stop requested
+                    # Convert mono to stereo (duplicate to L and R)
+                    audio_stereo = np.column_stack(
+                        (audio_48khz, audio_48khz)
+                    ).flatten()
+                    
+                    # Convert back to bytes
+                    audio_resampled = audio_stereo.astype(np.int16).tobytes()
+                    
+                    # Queue to mixer
+                    mixer.queue_tts_audio(audio_resampled)
+                    
+                    print(
+                        f"✅ TTS queued to mixer "
+                        f"({len(audio_resampled)} bytes at 48kHz stereo)"
+                    )
+                    
+                    # Wait for TTS to finish playing
+                    while mixer.is_tts_active():
                         if self.stop_event.is_set():
                             print("⏹️ Playback stopped by user")
-                            virtual_stream.stop_stream()
-                            virtual_stream.close()
-                            speaker_stream.stop_stream()
-                            speaker_stream.close()
                             self.is_playing = False
                             
                             if on_stopped:
                                 on_stopped()
                             return
                         
-                        # Get chunk
-                        chunk = audio_data[offset:offset + chunk_size]
-                        
-                        # Write to BOTH streams (virtual mic + speakers)
-                        virtual_stream.write(chunk)
-                        speaker_stream.write(chunk)
-                        
-                        offset += chunk_size
+                        time.sleep(0.1)
                     
-                    # Cleanup both streams
-                    virtual_stream.stop_stream()
-                    virtual_stream.close()
-                    speaker_stream.stop_stream()
-                    speaker_stream.close()
-                    
-                    print(
-                        f"✅ Playback complete to both outputs "
-                        f"({len(audio_data)} bytes played)"
-                    )
+                    print("✅ TTS playback complete")
                     
                     if on_complete:
                         on_complete()
@@ -200,38 +197,44 @@ class TTSAudioRouter:
 
 # Test module
 if __name__ == "__main__":
-    import numpy as np
+    from audio_mixer import start_mixer, stop_mixer
     
-    print("🧪 Testing TTS Audio Router\n")
+    print("🧪 Testing TTS Audio Router with Mixer\n")
+    
+    # Start mixer first
+    print("Starting audio mixer...")
+    if not start_mixer():
+        print("❌ Failed to start mixer")
+        exit(1)
+    
+    time.sleep(1)  # Let mixer initialize
     
     router = TTSAudioRouter()
     
-    if router.virtual_device_index is None:
-        print("❌ Cannot test: virtual device not found")
-        print("Please install BlackHole or similar virtual audio device")
-    else:
-        # Generate test audio (440 Hz tone for 2 seconds)
-        print("Test: Playing 440 Hz tone for 2 seconds...")
-        
-        sample_rate = 16000
-        duration = 2
-        frequency = 440
-        
-        t = np.linspace(0, duration, int(sample_rate * duration))
-        samples = np.sin(2 * np.pi * frequency * t)
-        
-        # Convert to 16-bit PCM
-        audio_data = (samples * 32767).astype(np.int16).tobytes()
-        
-        def on_complete():
-            print("✅ Test complete!")
-        
-        def on_stopped():
-            print("⏹️ Test stopped early")
-        
-        router.play_audio(audio_data, on_complete, on_stopped)
-        
-        # Wait for playback
-        time.sleep(3)
-        
-        router.cleanup()
+    # Generate test audio (440 Hz tone for 2 seconds)
+    print("Test: Playing 440 Hz tone for 2 seconds...")
+    
+    sample_rate = 16000
+    duration = 2
+    frequency = 440
+    
+    t = np.linspace(0, duration, int(sample_rate * duration))
+    samples = np.sin(2 * np.pi * frequency * t)
+    
+    # Convert to 16-bit PCM
+    audio_data = (samples * 32767).astype(np.int16).tobytes()
+    
+    def on_complete():
+        print("✅ Test complete!")
+    
+    def on_stopped():
+        print("⏹️ Test stopped early")
+    
+    router.play_audio(audio_data, on_complete, on_stopped)
+    
+    # Wait for playback
+    time.sleep(4)
+    
+    router.cleanup()
+    stop_mixer()
+    print("\n✅ Test finished")
