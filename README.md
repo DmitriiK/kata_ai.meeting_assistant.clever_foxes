@@ -322,6 +322,100 @@ Your Speech → Transcription → LLM Translation → Azure TTS →
 BlackHole Virtual Mic → Meeting App → Peer Hears Translation! 🌍
 ```
 
+### Dynamic Oral Translation Mode
+
+**The TTS to Microphone feature can be toggled ON and OFF at any time 
+during an active transcription session**, giving you complete flexibility 
+over when translations are generated and spoken.
+
+#### Usage Scenarios
+
+**Scenario 1: Normal conversation (TTS OFF)**
+- Speak naturally in your language
+- Your voice goes directly to meeting participants
+- System transcribes your speech normally
+- No translations are generated
+
+**Scenario 2: Need translation (TTS ON → Speak → TTS OFF)**
+1. **Enable TTS**: Check ☑ "Enable TTS to Microphone" during session
+2. **Speak in your language**: System transcribes and translates
+3. **Wait for generation**: Button shows "Generating..." → "Speak to Mic"
+4. **Press "Speak to Mic"**: Translation plays to meeting participants
+5. **Disable TTS**: Uncheck ☑ to return to normal mode
+   - Any buffered translations are automatically discarded
+   - System returns to passthrough mode
+
+**Scenario 3: Multiple translations in sequence**
+- Keep TTS enabled
+- Speak → Wait → Press "Speak to Mic" → Speak again
+- Each phrase generates a new translation
+- Previous translations are replaced when you speak new content
+
+#### Key Features
+
+✅ **Toggle anytime**: Enable/disable TTS checkbox during active session
+✅ **No restart needed**: Works mid-session without stopping transcription
+✅ **Auto-buffer cleanup**: Disabling TTS discards unspoken translations
+✅ **Smart button state**: "Speak to Mic" only enabled when:
+  - Transcription is running
+  - TTS checkbox is checked
+  - Translation audio is ready to play
+✅ **Interruption safe**: Stop speaking mid-playback with "Stop Speaking"
+
+#### Control Flow
+
+```
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│  TTS Checkbox: ☐ OFF                           │
+│  → Your voice passes through normally           │
+│  → No translations generated                    │
+│  → "Speak to Mic" button: DISABLED             │
+│                                                 │
+└─────────────────────────────────────────────────┘
+                      ↓ ☑ Check TTS
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│  TTS Checkbox: ☑ ON                            │
+│  → Transcription + Translation active           │
+│  → Translations buffered as you speak           │
+│  → "Speak to Mic" button: ENABLED when ready   │
+│                                                 │
+└─────────────────────────────────────────────────┘
+                      ↓ Press "Speak to Mic"
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│  Speaking to Meeting Participants               │
+│  → Translation playing through virtual mic      │
+│  → Button shows "Stop Speaking" (enabled)       │
+│  → Can interrupt by clicking button             │
+│                                                 │
+└─────────────────────────────────────────────────┘
+                      ↓ ☐ Uncheck TTS
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│  Cleanup Automatically:                         │
+│  → Playback stopped (if active)                 │
+│  → Buffered translations discarded              │
+│  → Return to normal passthrough mode            │
+│  → "Speak to Mic" button: DISABLED             │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+#### Best Practices
+
+1. **Test before meeting**: Enable TTS and say a test phrase to verify 
+   routing works
+2. **Disable when not needed**: Keep TTS off during normal conversation 
+   to save Azure costs
+3. **Watch the button**: "Generating..." means wait, "Speak to Mic" means 
+   ready
+4. **Short phrases work best**: System generates translations faster for 
+   shorter utterances
+5. **Check language selector**: Ensure target language is correct before 
+   enabling TTS
+
 ---
 
 ## Configuration

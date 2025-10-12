@@ -126,6 +126,18 @@ class TranslationTTSController:
         # Update state
         self._set_state(self.STATE_IDLE)
     
+    def clear_buffer(self):
+        """
+        Clear buffered audio without stopping playback.
+        Useful when disabling TTS feature mid-session.
+        """
+        # Clear buffer
+        self.buffer.clear_buffer()
+        
+        # Update state to idle if not speaking
+        if self.get_state() != self.STATE_SPEAKING:
+            self._set_state(self.STATE_IDLE)
+    
     def get_state(self) -> str:
         """
         Get current state.

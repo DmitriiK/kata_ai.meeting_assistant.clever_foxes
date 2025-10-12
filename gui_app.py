@@ -78,11 +78,14 @@ class TranscriptionGUI(QMainWindow):
         
         # Feature 2: TTS to Microphone
         self.tts_to_mic_enabled = False
+        self.tts_enabled_at = 0.0  # Timestamp when TTS was enabled
+        self.seen_before_tts = set()  # Text hashes seen before TTS enabled
         self.tts_controller = TranslationTTSController()
         self.tts_controller.on_state_change = self.on_tts_state_change
         
-        # Duplicate detection (to filter SYSTEM echoes of MIC audio)
+        # Duplicate detection (bidirectional: MIC↔SYSTEM)
         self.recent_mic_transcriptions = []  # [(text, timestamp), ...]
+        self.recent_sys_transcriptions = []  # [(text, timestamp), ...]
         self.duplicate_window_seconds = 3.0  # Time window for duplicates
         
         # Translation tracking (to identify SYSTEM texts as translations)
@@ -393,7 +396,7 @@ class TranscriptionGUI(QMainWindow):
                 self.translation_group.hide()
     
     def toggle_tts_to_mic(self, state):
-        """Toggle TTS to microphone feature on/off."""
+        """Toggle TTS to microphone feature on/off dynamically during session."""
         self.tts_to_mic_enabled = bool(state)
         
         if self.tts_to_mic_enabled:
@@ -418,9 +421,92 @@ class TranscriptionGUI(QMainWindow):
             self.tts_controller.set_language(
                 self.tts_language_selector.currentText()
             )
+            
+            # Clear any pending translations from before TTS was enabled
+            # This prevents rapid buffering/ready cycles that disable button
+            queued_count = 0
+            while not self.translation_queue.empty():
+                try:
+                    self.translation_queue.get_nowait()
+                    queued_count += 1
+                except Exception:
+                    break
+            if queued_count > 0:
+                print(f"🗑️ Cleared {queued_count} pending translations")
+            
+            # Save all recent transcriptions as "seen before TTS"
+            # Include both MIC and SYSTEM texts + items already queued
+            for text, _ in self.recent_mic_transcriptions:
+                text_hash = text.lower().strip().replace(" ", "")
+                self.seen_before_tts.add(text_hash)
+            for text, _ in self.recent_sys_transcriptions:
+                text_hash = text.lower().strip().replace(" ", "")
+                self.seen_before_tts.add(text_hash)
+            # Also mark any texts that were queued for translation
+            for text, _ in self.queued_for_translation:
+                text_hash = text.lower().strip().replace(" ", "")
+                self.seen_before_tts.add(text_hash)
+            
+            print(f"🗑️ Marked {len(self.seen_before_tts)} old texts to skip")
+            
+            # Start translation worker if not running
+            if not self.translation_worker_running:
+                self.translation_worker_running = True
+                import threading
+                worker_thread = threading.Thread(
+                    target=self.translation_worker,
+                    daemon=True
+                )
+                worker_thread.start()
+                print("🔄 Started translation worker thread")
+            
+            # Mark the time when TTS was enabled
+            import time
+            self.tts_enabled_at = time.time()
+            print("🌍 Oral translation mode enabled")
+            
+            # Add system message to Final Results
+            timestamp = time.strftime("%H:%M:%S")
+            self.signals.append_final.emit(
+                "🌍 Oral translation mode ENABLED",
+                "SYSTEM",
+                "System",
+                timestamp
+            )
+            
+            # Button should start DISABLED - will enable after NEW speech
+            self.signals.update_speak_button.emit("Speak to Mic", False)
         else:
-            # Stop any ongoing TTS
+            # Stop any ongoing TTS playback
             self.tts_controller.stop_speaking()
+            # Clear any buffered translations that haven't been spoken
+            self.tts_controller.clear_buffer()
+            
+            # Clear the translation queue
+            while not self.translation_queue.empty():
+                try:
+                    self.translation_queue.get_nowait()
+                except:
+                    break
+            print("🗑️ Cleared translation queue")
+            
+            # Clear the "seen before" set for next time TTS is enabled
+            self.seen_before_tts.clear()
+            print("🔇 Oral translation mode disabled")
+            
+            # Add system message to Final Results
+            import time
+            timestamp = time.strftime("%H:%M:%S")
+            self.signals.append_final.emit(
+                "🔇 Oral translation mode DISABLED",
+                "SYSTEM",
+                "System",
+                timestamp
+            )
+            
+            # Disable the speak button
+            self.signals.update_speak_button.emit("Speak to Mic", False)
+            
             # Hide translation window if text translation is also disabled
             if not self.text_translation_enabled:
                 self.translation_group.hide()
@@ -446,7 +532,8 @@ class TranscriptionGUI(QMainWindow):
     def on_tts_state_change(self, state: str):
         """Handle TTS controller state changes."""
         # Update button text and state based on TTS state
-        # Button is only enabled during transcription AND when ready/speaking
+        # Button enabled when: transcription running AND TTS enabled AND 
+        # state is ready/speaking
         if state == TranslationTTSController.STATE_IDLE:
             self.signals.update_speak_button.emit(
                 "Speak to Mic", False
@@ -456,22 +543,27 @@ class TranscriptionGUI(QMainWindow):
                 "Generating...", False
             )
         elif state == TranslationTTSController.STATE_READY:
-            # Only enable if transcription is running
-            enabled = self.is_running
+            # Enable if: transcription running AND TTS feature enabled
+            enabled = self.is_running and self.tts_to_mic_enabled
+            print(f"🔘 Button state update: is_running={self.is_running}, "
+                  f"tts_enabled={self.tts_to_mic_enabled}, "
+                  f"enabled={enabled}")
             self.signals.update_speak_button.emit(
                 "Speak to Mic", enabled
             )
         elif state == TranslationTTSController.STATE_SPEAKING:
-            # Only enable if transcription is running
-            enabled = self.is_running
+            # Enable if: transcription running AND TTS feature enabled
+            enabled = self.is_running and self.tts_to_mic_enabled
             self.signals.update_speak_button.emit(
                 "Stop Speaking", enabled
             )
     
     def update_speak_button(self, text: str, enabled: bool):
         """Update speak button (thread-safe)."""
+        print(f"🎛️ Updating button: text='{text}', enabled={enabled}")
         self.speak_btn.setText(text)
         self.speak_btn.setEnabled(enabled)
+        print(f"🎛️ Button updated: isEnabled={self.speak_btn.isEnabled()}")
     
     def show_warning(self, message: str):
         """Show warning icon with tooltip (thread-safe)."""
@@ -724,41 +816,58 @@ class TranscriptionGUI(QMainWindow):
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             current_time = time.time()
             
-            # FIRST: Track MIC transcriptions BEFORE any filtering
+            # FIRST: Bidirectional duplicate detection
+            # Normalize text for comparison
+            text_normalized = text.lower().strip().replace(
+                " ", ""
+            ).replace(".", "").replace(",", "")
+            
+            is_duplicate = False
+            
+            # Check MIC against recent SYSTEM (SYSTEM came first)
+            if "MIC" in source and self.mixer_started:
+                for sys_text, sys_time in self.recent_sys_transcriptions:
+                    time_diff = current_time - sys_time
+                    if time_diff < self.duplicate_window_seconds:
+                        sys_normalized = sys_text.lower().strip().replace(
+                            " ", ""
+                        ).replace(".", "").replace(",", "")
+                        if text_normalized == sys_normalized:
+                            is_duplicate = True
+                            print(f"� Filtered MIC duplicate of SYSTEM: {text[:50]}...")
+                            break
+            
+            # Check SYSTEM against recent MIC (MIC came first)
+            if "SYSTEM" in source and self.mixer_started:
+                for mic_text, mic_time in self.recent_mic_transcriptions:
+                    time_diff = current_time - mic_time
+                    if time_diff < self.duplicate_window_seconds:
+                        mic_normalized = mic_text.lower().strip().replace(
+                            " ", ""
+                        ).replace(".", "").replace(",", "")
+                        if text_normalized == mic_normalized:
+                            is_duplicate = True
+                            print(f"🔇 Filtered SYSTEM duplicate of MIC: {text[:50]}...")
+                            break
+            
+            if is_duplicate:
+                return
+            
+            # Track this transcription for future duplicate detection
             if "MIC" in source:
                 self.recent_mic_transcriptions.append((text, current_time))
-                # Keep only recent entries (last 10 seconds)
                 self.recent_mic_transcriptions = [
                     (t, ts) for t, ts in self.recent_mic_transcriptions
                     if current_time - ts < 10.0
                 ]
                 print(f"📝 Tracked MIC: {text[:30]}... (total: {len(self.recent_mic_transcriptions)})")
-            
-            # SECOND: Check if SYSTEM is a duplicate of MIC (audio mixer echo)
-            if "SYSTEM" in source and self.mixer_started:
-                print(f"🔍 Checking SYSTEM for duplicate: {text[:30]}...")
-                # Check if this matches a recent MIC transcription
-                is_duplicate_echo = False
-                for mic_text, mic_time in self.recent_mic_transcriptions:
-                    # Same text within duplicate window?
-                    time_diff = current_time - mic_time
-                    if time_diff < self.duplicate_window_seconds:
-                        # Fuzzy match (allow minor variations in punctuation)
-                        mic_normalized = mic_text.lower().strip().replace(
-                            " ", ""
-                        ).replace(".", "").replace(",", "")
-                        sys_normalized = text.lower().strip().replace(
-                            " ", ""
-                        ).replace(".", "").replace(",", "")
-                        
-                        if mic_normalized == sys_normalized:
-                            is_duplicate_echo = True
-                            break
-                
-                if is_duplicate_echo:
-                    # This is SYSTEM echo of MIC, skip it
-                    print(f"🔇 Filtered SYSTEM duplicate: {text[:50]}...")
-                    return
+            elif "SYSTEM" in source:
+                self.recent_sys_transcriptions.append((text, current_time))
+                self.recent_sys_transcriptions = [
+                    (t, ts) for t, ts in self.recent_sys_transcriptions
+                    if current_time - ts < 10.0
+                ]
+                print(f"� Tracked SYSTEM: {text[:30]}... (total: {len(self.recent_sys_transcriptions)})")
             
             # THIRD: Check if SYSTEM is actually a TTS translation
             # TTS translations are NOT in the queued list (not MIC audio)
@@ -790,7 +899,18 @@ class TranscriptionGUI(QMainWindow):
                 self.text_translation_enabled or self.tts_to_mic_enabled
             )
             if translation_needed and text.strip() and source != "TTS":
-                if self.translation_queue.qsize() < 5:  # Limit queue size
+                # For TTS: Skip OLD speech (seen before TTS was enabled)
+                # For text translation: Queue all speech
+                should_queue = True
+                if self.tts_to_mic_enabled:
+                    # When TTS enabled: check if text was seen before TTS
+                    text_hash = text.lower().strip().replace(" ", "")
+                    if text_hash in self.seen_before_tts:
+                        should_queue = False
+                        print("⏭️ Skipping old speech from before TTS enable")
+                
+                if should_queue and self.translation_queue.qsize() < 5:
+                    print(f"📤 Queued for translation: {text[:40]}...")
                     self.translation_queue.put(
                         (text, source, speaker_id, timestamp)
                     )
@@ -801,6 +921,10 @@ class TranscriptionGUI(QMainWindow):
                         (t, ts) for t, ts in self.queued_for_translation
                         if current_time - ts < self.translation_window_seconds
                     ]
+                elif not should_queue:
+                    print(f"⏸️ NOT queued (should_queue=False): {text[:40]}...")
+                elif self.translation_queue.qsize() >= 5:
+                    print(f"⏸️ NOT queued (queue full): {text[:40]}...")
             
             # Also log to file (translations are NOT logged)
             self.logger.log_transcription(text, source, speaker_id)
