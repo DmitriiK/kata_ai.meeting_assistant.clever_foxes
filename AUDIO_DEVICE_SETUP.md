@@ -110,11 +110,17 @@ system_profiler SPAudioDataType | grep -i blackhole
 
 1. Open **Audio MIDI Setup** (Cmd+Space → "Audio MIDI Setup")
 2. Click **"+"** → **"Create Aggregate Device"**
-3. Check both:
-   - ☑️ **Your Real Microphone**
+3. Check both devices:
+   - ☑️ **Your Real Microphone** (e.g., Jabra EVOLVE)
    - ☑️ **BlackHole 2ch**
-4. Click your real microphone → Check **"Drift Correction"**
-5. **(Optional)** Rename to **"Mic + BlackHole"**
+4. **⚠️ IMPORTANT - Set Device Order:**
+   - In the "Subdevices" section at the top, make sure your **Real Microphone appears FIRST (leftmost)**
+   - If BlackHole is first, drag your microphone button to the left to reorder
+   - Order should be: `[Your Mic] [BlackHole]`
+5. Enable **"Drift Correction"**:
+   - Click **your real microphone** in the list → Check **"Drift Correction"** ✅
+   - Click **BlackHole 2ch** in the list → Check **"Drift Correction"** ✅
+6. **(Optional)** Rename to **"Mic + BlackHole"**
 
 ### Step 3: Create Multi-Output Device (BlackHole + Speakers)
 
@@ -243,13 +249,15 @@ pactl set-default-sink virtual_speaker
 
 **Peer doesn't hear my voice:**
 - ✅ Check real microphone is in Aggregate Device
-- ✅ Enable "Drift Correction" on real mic
+- ✅ **Verify real microphone is FIRST (leftmost) in Subdevices order**
+- ✅ Enable "Drift Correction" on real mic AND BlackHole
 - ✅ Test Aggregate in System Settings → Sound → Input
 
 **Peer doesn't hear TTS:**
 - ✅ System output set to Multi-Output Device
 - ✅ Meeting app mic set to Aggregate Device
 - ✅ BlackHole included in both devices
+- ✅ Real microphone is first in Aggregate Device order
 
 **I don't hear TTS:**
 - ✅ Set Multi-Output as system output
