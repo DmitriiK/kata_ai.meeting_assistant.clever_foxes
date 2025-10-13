@@ -635,11 +635,6 @@ class TranscriptionGUI(QMainWindow):
                     # Format display with date and time on one line - simplified for better readability
                     display_name = dt.strftime("%Y-%m-%d %H:%M:%S")
                     
-                    # Check if session has summary file
-                    has_summary = (session_folder / f"meeting_summary_{timestamp_str}.json").exists()
-                    if has_summary:
-                        display_name += " ✓"
-                    
                     # Create list item
                     item = QListWidgetItem(display_name)
                     item.setData(Qt.ItemDataRole.UserRole, folder_name)  # Store folder name
