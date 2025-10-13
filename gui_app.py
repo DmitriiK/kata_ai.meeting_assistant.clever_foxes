@@ -469,7 +469,7 @@ class TranscriptionGUI(QMainWindow):
         # Session info/stats at bottom
         self.session_stats_label = QLabel("Select a session to view insights")
         self.session_stats_label.setStyleSheet(
-            "padding: 10px; background-color: #f0f0f0; border-radius: 5px; font-size: 9pt;"
+            "padding: 10px; background-color: #f0f0f0; color: #333333; border-radius: 5px; font-size: 9pt;"
         )
         self.session_stats_label.setWordWrap(True)
         left_panel_layout.addWidget(self.session_stats_label)
