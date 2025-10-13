@@ -20,66 +20,204 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 
 ## Features
 
-### 🎤 Real-Time Transcription
+### 🎤 Speech Transcription During Meetings
 
-- **Streaming Recognition**: Direct Azure Speech Service integration with minimal delay
-- **Dual Audio Capture**: Records both microphone and system audio simultaneously
-- **Speaker Diarization**: Automatically identifies and distinguishes between multiple speakers
-- **Multi-language Support**: Auto-detects and switches between English, Russian, and Turkish
-- **Interim Results**: See transcription in real-time as you speak (before phrase completion)
+**Real-time speech recognition with advanced features:**
+
+- **Streaming Recognition**
+  - Direct Azure Speech Service integration with minimal delay
+  - Continuous audio streaming for instant transcription
+  - See results appear as you speak
+  
+- **Multi-language Support**
+  - Auto-detects and switches between languages dynamically
+  - Supports 100+ languages including English, Russian, Turkish, Spanish, Hungarian, Hindi, Hebrew
+  - Configurable language sets (standard 3 languages or extended up to 30+ languages)
+  - Custom language detection profiles
+
+- **Speaker Diarization**
+  - Automatically identifies and distinguishes between multiple speakers
+  - Labels speakers as "Speaker 0", "Speaker 1", etc.
+  - Tracks who said what throughout the meeting
+  - Supports 2-10 simultaneous speakers
+
+- **Dual Audio Capture**
+  - Records both microphone (your voice) and system audio (meeting participants)
+  - Captures audio from any meeting platform (Teams, Zoom, Telegram, etc.)
+  - Virtual audio device support for system audio routing
+  
+- **Live Progress Indicators**
+  - Interim results: See transcription in real-time as you speak (before phrase completion)
+  - Visual feedback with color-coded displays (yellow for interim, green for final)
+  - Real-time confidence indicators
+
+### 🌍 Translation & Text-to-Speech
+
+**Near real-time oral translation from microphone with dynamic control:**
+
+- **LLM-Powered Translation**
+  - Azure OpenAI GPT-4 for accurate, context-aware translations
+  - Supports multiple language pairs (English ↔ Russian ↔ Turkish ↔ Spanish, etc.)
+  - Natural, conversational translation style
+
+- **Text-to-Speech Integration**
+  - Azure TTS with neural voices for natural-sounding speech
+  - Automatic voice selection for target language
+  - High-quality audio generation
+
+- **Virtual Microphone Routing**
+  - Routes TTS audio directly to meeting app microphone input
+  - Your peers hear translations as if you spoke them
+  - Dual audio output: meeting app + your speakers (you hear it too)
+  - Complete setup guide for virtual audio devices (BlackHole, VB-Cable, etc.)
+
+- **Dynamic On/Off Toggle**
+  - Enable/disable translation mid-session without stopping transcription
+  - Toggle TTS checkbox anytime during active meeting
+  - Automatic buffer cleanup when disabled
+  - Smart button states: "Generating..." → "Speak to Mic" → "Stop Speaking"
+
+- **User-Controlled Playback**
+  - Manual trigger: press "Speak to Mic" button when ready
+  - Can interrupt mid-playback with "Stop Speaking"
+  - Non-blocking: UI stays responsive during generation
+  
+- **Translation Display**
+  - Dedicated translation window with blue background color-coding
+  - Timestamps for each translation
+  - Persistent history throughout session
 
 ### 🤖 AI-Powered Meeting Intelligence
 
-- **Smart Follow-up Questions**: Automatically suggests relevant questions to clarify or expand on topics
-- **Key Points Extraction**: Identifies and highlights important information from conversations
-- **Action Items Tracking**: Captures tasks, commitments, and assignments mentioned during meetings
-- **Decision Recording**: Automatically identifies and logs decisions made during discussions
-- **Real-time Insights**: AI analysis saved to individual text files as they're generated
-- **Meeting Summaries**: Generates comprehensive summaries with key outcomes and insights
-- **Visual Insights Dashboard** (GUI): Color-coded sections with resizable panels
-- **Session History Browser** (GUI): View and search all past meeting insights
-- **Date Filtering** (GUI): Quickly find sessions from specific dates
+**Automatic insight generation during meetings:**
 
-### 🌍 Translation Feature with TTS-to-Microphone
+- **Smart Follow-up Questions**
+  - AI automatically suggests relevant questions to clarify or expand on topics
+  - Helps maintain meeting momentum
+  - Identifies missing information or unclear points
 
-- **Real-time Translation**: LLM-powered translation using Azure OpenAI
-- **Multi-language Support**: Translate between English, Russian, and Turkish
-- **Text-to-Speech Integration**: Converts translations to speech using Azure TTS
-- **Virtual Microphone Routing**: Routes TTS audio to virtual mic input for meeting apps
-- **User-Controlled Playback**: Speak/Stop button for manual control
-- **Smart Voice Selection**: Automatically selects appropriate voice for target language
-- **Non-blocking Processing**: Translation and TTS run in separate threads
-- **Dedicated Display**: Translations appear in separate window with timestamps
+- **Key Points Extraction**
+  - Identifies and highlights important information from conversations
+  - Filters out small talk and focuses on substance
+  - Real-time updates as discussion progresses
 
-### 🤖 Private AI Chat
+- **Action Items Tracking**
+  - Captures tasks, commitments, and assignments mentioned during meetings
+  - Identifies responsible parties
+  - Tracks deadlines and dependencies
 
-- **Live Transcript Context**: Ask questions about the ongoing meeting in real-time
-- **Quick Question Buttons**: Pre-defined common questions for instant insights
-  - What was last said?
-  - Who spoke last?
-  - Action items mentioned
-  - Main topic discussion
-  - Concerns raised
-  - Next steps planned
-  - Decisions made
-- **Custom Questions**: Type any question about the meeting content
-- **Smart Context Window**: AI analyzes recent conversation history (up to 3000 characters)
-- **Non-blocking Processing**: Questions processed in background thread
-- **Persistent History**: All Q&A saved to `private-chat-history.txt` in session folder
-- **Session History Review**: View chat history from past meetings
+- **Decision Recording**
+  - Automatically identifies and logs decisions made during discussions
+  - Captures context around decision-making
+  - Helps prevent decision drift
 
-**📖 See [Audio Device Setup Guide](AUDIO_DEVICE_SETUP.md) for complete configuration instructions.**
+- **Real-time Insights**
+  - AI analysis saved to individual text files as they're generated
+  - Separate files for each insight type (follow-up questions, key points, action items, decisions)
+  - Timestamped entries for chronological tracking
 
-### 📊 Advanced Meeting Management
+- **Meeting Summaries**
+  - Generates comprehensive summaries with key outcomes and insights
+  - Multiple export formats: JSON (data), Markdown (human-readable), text files
+  - Includes statistics and metadata
 
-- **Session-based Tracking**: Each meeting creates its own isolated folder with timestamp
-- **Comprehensive Analytics**: Meeting statistics and performance metrics
-- **Multiple Export Formats**: JSON (data), Markdown (reports), and individual text files (insights)
-- **Persistent Storage**: Complete meeting history with easy retrieval
-- **Auto-pause Feature**: Automatically pauses after period of silence (configurable)
-- **Session Browser** (GUI): List all past sessions with sorting and filtering
-- **Live vs. Historical View** (GUI): Toggle between current meeting and past sessions
-- **Smart Date Filtering** (GUI): Calendar-based session discovery
+- **Duplicate Prevention**
+  - Smart comparison prevents repetitive AI suggestions
+  - Improves insight quality and reduces noise
+
+### 💬 Private AI Chat
+
+**Interactive AI assistant with meeting context:**
+
+- **Live Transcript Context**
+  - Ask questions about the ongoing meeting in real-time
+  - AI analyzes recent conversation history (up to 3000 characters)
+  - Understands speaker attribution and context
+
+- **Quick Question Buttons**
+  - 📝 **Last Said** - What was just discussed?
+  - 👤 **Who Spoke** - Who was the last speaker?
+  - 📋 **Action Items** - What tasks were mentioned?
+  - 🎯 **Main Topic** - What's the main discussion?
+  - ⚠️ **Concerns** - What issues were raised?
+  - ➡️ **Next Steps** - What are the plans?
+  - ✅ **Decisions** - What was decided?
+
+- **Custom Questions**
+  - Type any question about meeting content
+  - Natural language understanding
+  - Context-aware responses
+
+- **Non-blocking Processing**
+  - Questions processed in background threads
+  - UI stays responsive
+  - Multiple questions can be queued
+
+- **Persistent History**
+  - All Q&A saved to `private-chat-history.txt` in session folder
+  - Review conversations later
+  - Timestamped question types
+
+- **Session History Review**
+  - Browse chat history from past meetings
+  - Search across multiple sessions
+
+### 📊 Advanced Session Management
+
+**Comprehensive meeting organization and analytics:**
+
+- **Session-based Tracking**
+  - Each meeting creates isolated folder with timestamp
+  - Automatic organization by date and time
+  - No conflicts between concurrent sessions
+
+- **Visual Insights Dashboard (GUI)**
+  - Two-tab interface: Transcription + AI Insights
+  - Color-coded insight sections with resizable panels
+  - Real-time updates during active meetings
+
+- **Session History Browser (GUI)**
+  - 🔴 LIVE Session button for current meeting
+  - List all past meetings sorted by most recent
+  - Session statistics: duration, insight counts, metadata
+
+- **Smart Date Filtering (GUI)**
+  - Calendar picker to filter sessions by specific date
+  - "All" button to show all sessions
+  - Quick access to recent meetings
+
+- **Live vs. Historical View (GUI)**
+  - Toggle between current meeting and past sessions
+  - Seamless switching without losing context
+  - Browse previous insights while in active meeting
+
+- **Auto-pause Feature**
+  - Automatically pauses after configurable silence period (default: 60 seconds)
+  - Saves Azure costs during breaks
+  - Visual indication of pause state
+
+- **Multiple Export Formats**
+  - JSON for programmatic access
+  - Markdown for human-readable reports
+  - Individual text files for each insight type
+  - Structured session folders for easy archival
+
+- **Comprehensive Analytics**
+  - Meeting duration tracking
+  - Word count statistics
+  - Speaker participation metrics
+  - Insight generation counts
+
+**📖 See [Audio Device Setup Guide](AUDIO_DEVICE_SETUP.md) for complete virtual audio configuration and troubleshooting.**
+
+### 🎛️ Additional Features
+
+- **Audio File Transcription**: Standalone script to transcribe pre-recorded audio files (OGG, MP3, WAV, etc.)
+- **Cross-platform GUI**: Works on macOS, Windows, and Linux with PyQt6
+- **Session Timer**: Visual timer showing meeting duration
+- **API Status Indicators**: Real-time Azure service connection status
+- **Configurable Settings**: Extensive configuration options via `config.py` and `.env`
+- **Demo Mode**: Test all features without microphone input
 
 ---
 
