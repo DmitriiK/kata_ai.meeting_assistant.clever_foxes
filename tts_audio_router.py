@@ -17,15 +17,21 @@ class TTSAudioRouter:
     Supports controlled playback with start/stop.
     """
     
-    def __init__(self, virtual_device_name: str = "BlackHole"):
+    def __init__(
+        self,
+        virtual_device_name: str = "BlackHole",
+        enable_local_playback: bool = True
+    ):
         """
         Initialize TTS audio router.
         
         Args:
             virtual_device_name: Name of virtual audio device to route to
+            enable_local_playback: If True, also play TTS to local speakers
         """
         self.virtual_device_name = virtual_device_name
         self.virtual_device_index: Optional[int] = None
+        self.enable_local_playback = enable_local_playback
         
         # Playback state
         self.is_playing = False
@@ -78,6 +84,7 @@ class TTSAudioRouter:
         """
         Play audio data via mixer (mixed with microphone).
         Routes to virtual device to act as microphone input.
+        Also optionally plays to local speakers for user to hear.
         
         The audio mixer continuously routes your microphone to BlackHole
         and mixes in TTS audio when playing. This allows peers to hear
@@ -105,6 +112,7 @@ class TTSAudioRouter:
             with self.playback_lock:
                 self.is_playing = True
                 self.stop_event.clear()
+                local_stream = None
                 
                 try:
                     # Convert 16kHz mono to 48kHz stereo for mixer
@@ -130,7 +138,7 @@ class TTSAudioRouter:
                     # Convert back to bytes
                     audio_resampled = audio_stereo.astype(np.int16).tobytes()
                     
-                    # Queue to mixer
+                    # Queue to mixer (for other participants)
                     mixer.queue_tts_audio(audio_resampled)
                     
                     print(
@@ -138,7 +146,33 @@ class TTSAudioRouter:
                         f"({len(audio_resampled)} bytes at 48kHz stereo)"
                     )
                     
-                    # Wait for TTS to finish playing
+                    # Also play to local speakers if enabled
+                    if self.enable_local_playback:
+                        try:
+                            # Open stream to default output device
+                            local_stream = self.audio.open(
+                                format=pyaudio.paInt16,
+                                channels=2,  # Stereo
+                                rate=48000,
+                                output=True
+                            )
+                            print("🔊 Playing TTS to local speakers...")
+                        except Exception as e:
+                            print(f"⚠️ Could not open local playback: {e}")
+                            local_stream = None
+                    
+                    # Play audio in chunks if local playback enabled
+                    if local_stream:
+                        chunk_size = 4096
+                        for i in range(0, len(audio_resampled), chunk_size):
+                            if self.stop_event.is_set():
+                                print("⏹️ Playback stopped by user")
+                                break
+                            
+                            chunk = audio_resampled[i:i + chunk_size]
+                            local_stream.write(chunk)
+                    
+                    # Wait for TTS to finish in mixer
                     while mixer.is_tts_active():
                         if self.stop_event.is_set():
                             print("⏹️ Playback stopped by user")
@@ -162,6 +196,14 @@ class TTSAudioRouter:
                         on_stopped()
                         
                 finally:
+                    # Close local stream if opened
+                    if local_stream:
+                        try:
+                            local_stream.stop_stream()
+                            local_stream.close()
+                        except Exception:
+                            pass
+                    
                     self.is_playing = False
         
         # Start playback thread
