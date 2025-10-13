@@ -23,6 +23,14 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QDate
 from PyQt6.QtGui import QFont, QTextCursor, QColor, QIcon, QMovie, QPixmap
+# Import our modern EPAM-inspired styles
+from epam_style import (
+    COLORS, FONTS, apply_modern_styles, get_textedit_style,
+    PRIMARY_BUTTON_STYLE, SECONDARY_BUTTON_STYLE, ACTION_BUTTON_STYLE,
+    TITLE_STYLE, TIMER_LABEL_STYLE, WARNING_LABEL_STYLE, LIVE_MODE_BUTTON_STYLE
+)
+# Import modern icons and professional text
+from modern_icons import MODERN_BUTTON_TEXT, MODERN_HEADERS, MODERN_CHAT_BUTTONS
 from azure_speech_service import AzureSpeechTranscriber
 from transcription_logger import TranscriptionLogger
 from config import AudioSettings, LogSettings, SessionSettings
@@ -108,12 +116,12 @@ class TranscriptionGUI(QMainWindow):
         
         # Audio Mixer (for routing mic + TTS to virtual device)
         self.mixer_started = False
-        print("🔄 Starting audio mixer...")
+        print("[REFRESH] Starting audio mixer...")
         if start_mixer():
             self.mixer_started = True
-            print("✅ Audio mixer started successfully")
+            print("[OK] Audio mixer started successfully")
         else:
-            print("⚠️ Audio mixer failed to start")
+            print("[WARNING] Audio mixer failed to start")
             print("   TTS to Mic feature may not work")
         
         # Error tracking
@@ -165,60 +173,79 @@ class TranscriptionGUI(QMainWindow):
         self.setup_ui()
     
     def setup_ui(self):
-        """Setup the user interface."""
-        self.setWindowTitle("🎤 Meeting Transcription Assistant")
-        self.setGeometry(100, 100, 1400, 900)
+        """Setup the user interface with modern EPAM-inspired design."""
+        self.setWindowTitle("Meeting Transcription Assistant")
+        self.setGeometry(100, 100, 1500, 1000)
+        
+        # Apply modern styles to the entire application
+        apply_modern_styles(self)
         
         # Central widget
         central_widget = QWidget()
+        central_widget.setStyleSheet(f"background-color: {COLORS['bg_primary']};")
         self.setCentralWidget(central_widget)
         
-        # Main layout
+        # Main layout with proper spacing
         main_layout = QVBoxLayout()
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(24, 24, 24, 24)
         central_widget.setLayout(main_layout)
         
         # Header with controls
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(24)
         
-        # Title
-        title_label = QLabel("🎤 Meeting Transcription Assistant")
-        title_font = QFont("Arial", 16, QFont.Weight.Bold)
-        title_label.setFont(title_font)
+        # Title with modern styling - clean and professional
+        title_label = QLabel("Meeting Transcription Assistant")
+        title_label.setStyleSheet(TITLE_STYLE)
         header_layout.addWidget(title_label)
         
         # Warning indicator for translation errors (initialized here, added to footer later)
         self.warning_label = QLabel("")
-        self.warning_label.setStyleSheet(
-            "color: orange; font-size: 14pt; font-weight: bold;"
-        )
+        self.warning_label.setStyleSheet(WARNING_LABEL_STYLE)
         self.warning_label.setVisible(False)
         
-        # Timer (initialized here, added to footer later)
-        self.timer_label = QLabel("⏱️ 00:00:00")
-        self.timer_label.setStyleSheet("font-size: 12pt;")
+        # Timer (initialized here, added to footer later) - professional format
+        self.timer_label = QLabel("00:00:00")
+        self.timer_label.setStyleSheet(TIMER_LABEL_STYLE)
         
-        # API Status indicator
+        # API Status indicator with modern styling
         self.api_status_label = QLabel("")
-        self.api_status_label.setStyleSheet(
-            "color: #666; font-size: 10pt; font-style: italic;"
-        )
+        self.api_status_label.setStyleSheet(f"""
+            QLabel {{
+                color: {COLORS['text_muted']};
+                font-family: {FONTS['primary']};
+                font-size: 12px;
+                font-style: italic;
+                padding: 4px 8px;
+                background-color: {COLORS['bg_secondary']};
+                border-radius: 4px;
+            }}
+        """)
         self.api_status_label.setVisible(False)
         
         header_layout.addStretch()
         
         # Control buttons in vertical layout (left side)
         control_layout = QVBoxLayout()
+        control_layout.setSpacing(12)
         
-        # Start/Stop button
-        self.start_stop_btn = QPushButton("▶ Start Transcription")
+        # Start/Stop button with primary styling - professional text
+        self.start_stop_btn = QPushButton(MODERN_BUTTON_TEXT['start_transcription'])
+        self.start_stop_btn.setObjectName("primary_button")
+        self.start_stop_btn.setStyleSheet(PRIMARY_BUTTON_STYLE)
         self.start_stop_btn.clicked.connect(self.toggle_transcription)
-        self.start_stop_btn.setMinimumWidth(180)
+        self.start_stop_btn.setMinimumWidth(200)
+        self.start_stop_btn.setMinimumHeight(45)
         control_layout.addWidget(self.start_stop_btn)
         
-        # Clear Final button
-        clear_final_btn = QPushButton("Clear Final")
+        # Clear Final button with secondary styling - professional text
+        clear_final_btn = QPushButton(MODERN_BUTTON_TEXT['clear_final'])
+        clear_final_btn.setObjectName("secondary_button")
+        clear_final_btn.setStyleSheet(SECONDARY_BUTTON_STYLE)
         clear_final_btn.clicked.connect(self.clear_final)
-        clear_final_btn.setMinimumWidth(180)
+        clear_final_btn.setMinimumWidth(200)
+        clear_final_btn.setMinimumHeight(40)
         control_layout.addWidget(clear_final_btn)
         
         header_layout.addLayout(control_layout)
@@ -242,19 +269,21 @@ class TranscriptionGUI(QMainWindow):
         
         # ===== FEATURE GROUPS LAYOUT =====
         features_layout = QHBoxLayout()
+        features_layout.setSpacing(20)
         
-        # GROUP 1: Speech to Text Translation
-        speech_to_text_group = QGroupBox("📝 Speech to Text Translation")
+        # GROUP 1: Speech to Text Translation (Modern Card) - professional header
+        speech_to_text_group = QGroupBox(MODERN_HEADERS['speech_translation'])
         speech_to_text_layout = QVBoxLayout()
+        speech_to_text_layout.setSpacing(16)
+        speech_to_text_layout.setContentsMargins(20, 20, 20, 20)
         
         self.translate_text_checkbox = QCheckBox("Enable Translation")
-        self.translate_text_checkbox.stateChanged.connect(
-            self.toggle_text_translation
-        )
         speech_to_text_layout.addWidget(self.translate_text_checkbox)
         
         lang_layout = QHBoxLayout()
-        lang_layout.addWidget(QLabel("Target Language:"))
+        lang_label = QLabel("Target Language:")
+        lang_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-weight: 500;")
+        lang_layout.addWidget(lang_label)
         self.text_translation_language = QComboBox()
         self.text_translation_language.addItems([
             "English", "Russian", "Turkish"
@@ -265,18 +294,19 @@ class TranscriptionGUI(QMainWindow):
         speech_to_text_group.setLayout(speech_to_text_layout)
         features_layout.addWidget(speech_to_text_group)
         
-        # GROUP 2: Text to Speech Translation
-        text_to_speech_group = QGroupBox("🔊 Text to Speech Translation")
+        # GROUP 2: Text to Speech Translation (Modern Card) - professional header
+        text_to_speech_group = QGroupBox(MODERN_HEADERS['tts_translation'])
         text_to_speech_layout = QVBoxLayout()
+        text_to_speech_layout.setSpacing(16)
+        text_to_speech_layout.setContentsMargins(20, 20, 20, 20)
         
         self.tts_mic_checkbox = QCheckBox("Enable TTS to Mic")
-        self.tts_mic_checkbox.stateChanged.connect(
-            self.toggle_tts_to_mic
-        )
         text_to_speech_layout.addWidget(self.tts_mic_checkbox)
         
         tts_lang_layout = QHBoxLayout()
-        tts_lang_layout.addWidget(QLabel("TTS Language:"))
+        tts_label = QLabel("TTS Language:")
+        tts_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-weight: 500;")
+        tts_lang_layout.addWidget(tts_label)
         self.tts_language_selector = QComboBox()
         self.tts_language_selector.addItems([
             "English", "Russian", "Turkish"
@@ -287,11 +317,22 @@ class TranscriptionGUI(QMainWindow):
         tts_lang_layout.addWidget(self.tts_language_selector)
         text_to_speech_layout.addLayout(tts_lang_layout)
         
-        self.speak_btn = QPushButton("Speak to Mic")
+        self.speak_btn = QPushButton(MODERN_BUTTON_TEXT['speak_to_mic'])
+        self.speak_btn.setObjectName("action_button")
+        self.speak_btn.setStyleSheet(ACTION_BUTTON_STYLE)
         self.speak_btn.setEnabled(False)
-        self.speak_btn.setMinimumWidth(150)
+        self.speak_btn.setMinimumWidth(160)
+        self.speak_btn.setMinimumHeight(35)
         self.speak_btn.clicked.connect(self.toggle_speak_translation)
         text_to_speech_layout.addWidget(self.speak_btn)
+        
+        # Connect checkboxes to their handlers after styling
+        self.translate_text_checkbox.stateChanged.connect(
+            self.toggle_text_translation
+        )
+        self.tts_mic_checkbox.stateChanged.connect(
+            self.toggle_tts_to_mic
+        )
         
         text_to_speech_group.setLayout(text_to_speech_layout)
         features_layout.addWidget(text_to_speech_group)
@@ -307,50 +348,42 @@ class TranscriptionGUI(QMainWindow):
         transcription_layout = QVBoxLayout()
         transcription_tab.setLayout(transcription_layout)
         
-        # Interim Results Group (single line)
-        interim_group = QGroupBox("⚡ Interim Results (Live Transcription)")
+        # Interim Results Group (single line) with modern styling - professional header
+        interim_group = QGroupBox(MODERN_HEADERS['interim_results'])
         interim_layout = QVBoxLayout()
+        interim_layout.setContentsMargins(16, 16, 16, 16)
         
         self.interim_text = QTextEdit()
         self.interim_text.setReadOnly(True)
-        self.interim_text.setFont(QFont("Courier", 10))
-        self.interim_text.setStyleSheet(
-            "background-color: #FFFACD; color: #000000;"
-        )
+        self.interim_text.setStyleSheet(get_textedit_style(COLORS['accent_warning']))
         # Set fixed height for single row
-        self.interim_text.setMaximumHeight(50)
+        self.interim_text.setMaximumHeight(60)
         interim_layout.addWidget(self.interim_text)
         
         interim_group.setLayout(interim_layout)
         transcription_layout.addWidget(interim_group)
         
-        # Final Results Group
-        final_group = QGroupBox(
-            "🎯 Final Results (Confirmed Transcriptions)"
-        )
+        # Final Results Group with modern styling - professional header
+        final_group = QGroupBox(MODERN_HEADERS['final_results'])
         final_layout = QVBoxLayout()
+        final_layout.setContentsMargins(16, 16, 16, 16)
         
         self.final_text = QTextEdit()
         self.final_text.setReadOnly(True)
-        self.final_text.setFont(QFont("Courier", 10))
-        self.final_text.setStyleSheet(
-            "background-color: #E0FFE0; color: #000000;"
-        )
+        self.final_text.setStyleSheet(get_textedit_style(COLORS['accent_success']))
         final_layout.addWidget(self.final_text)
         
         final_group.setLayout(final_layout)
         transcription_layout.addWidget(final_group)
         
-        # Translation Results Group
-        self.translation_group = QGroupBox("🌍 Translation Results")
+        # Translation Results Group with modern styling - professional header
+        self.translation_group = QGroupBox(MODERN_HEADERS['translation_results'])
         translation_result_layout = QVBoxLayout()
+        translation_result_layout.setContentsMargins(16, 16, 16, 16)
         
         self.translation_text = QTextEdit()
         self.translation_text.setReadOnly(True)
-        self.translation_text.setFont(QFont("Courier", 10))
-        self.translation_text.setStyleSheet(
-            "background-color: #E0F0FF; color: #000000;"
-        )
+        self.translation_text.setStyleSheet(get_textedit_style(COLORS['accent_info']))
         translation_result_layout.addWidget(self.translation_text)
         
         self.translation_group.setLayout(translation_result_layout)
@@ -360,8 +393,8 @@ class TranscriptionGUI(QMainWindow):
         # ===== PRIVATE AI CHAT SECTION =====
         self.setup_private_chat_ui(transcription_layout)
         
-        # Add transcription tab to tab widget
-        self.tab_widget.addTab(transcription_tab, "📝 Transcription")
+        # Add transcription tab to tab widget - professional name
+        self.tab_widget.addTab(transcription_tab, MODERN_HEADERS['transcription_tab'])
         
         # ===== TAB 2: AI INSIGHTS =====
         self.setup_insights_tab()
@@ -369,8 +402,10 @@ class TranscriptionGUI(QMainWindow):
         # Connect tab change event to auto-refresh sessions
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
         
-        # Footer layout with warning indicator, status, and timer
+        # Footer layout with modern spacing and styling
         footer_layout = QHBoxLayout()
+        footer_layout.setSpacing(16)
+        footer_layout.setContentsMargins(0, 12, 0, 0)
         footer_layout.addWidget(self.warning_label)
         footer_layout.addWidget(self.api_status_label)
         footer_layout.addStretch()
@@ -404,99 +439,96 @@ class TranscriptionGUI(QMainWindow):
         left_panel.setLayout(left_panel_layout)
         left_panel.setMaximumWidth(350)
         
-        # Live session button (always at top)
-        self.live_mode_btn = QPushButton("🔴 LIVE Session")
+        # Live session button (always at top) with modern styling - professional text
+        self.live_mode_btn = QPushButton(MODERN_BUTTON_TEXT['live_session'])
         self.live_mode_btn.setCheckable(True)
         self.live_mode_btn.setChecked(True)
+        self.live_mode_btn.setObjectName("live_mode_button")
+        self.live_mode_btn.setStyleSheet(LIVE_MODE_BUTTON_STYLE)
         self.live_mode_btn.clicked.connect(self.switch_to_live_mode)
-        self.live_mode_btn.setMinimumHeight(50)
-        self.live_mode_btn.setStyleSheet(
-            """
-            QPushButton {
-                font-size: 14pt;
-                font-weight: bold;
-                border: 2px solid #4CAF50;
-                border-radius: 5px;
-                padding: 10px;
-            }
-            QPushButton:checked {
-                background-color: #4CAF50;
-                color: white;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-                color: white;
-            }
-            """
-        )
+        self.live_mode_btn.setMinimumHeight(55)
         left_panel_layout.addWidget(self.live_mode_btn)
         
-        # Session list header
-        session_list_label = QLabel("📁 Past Sessions")
-        session_list_label.setStyleSheet("font-size: 12pt; font-weight: bold; margin-top: 10px;")
+        # Session list header with modern styling - professional text
+        session_list_label = QLabel(MODERN_HEADERS['past_sessions'])
+        session_list_label.setStyleSheet(f"""
+            QLabel {{
+                font-family: {FONTS['primary']};
+                font-size: 16px;
+                font-weight: 600;
+                color: {COLORS['epam_dark']};
+                margin-top: 16px;
+                margin-bottom: 8px;
+            }}
+        """)
         left_panel_layout.addWidget(session_list_label)
         
-        # Date filter controls
+        # Date filter controls with modern styling
         filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Filter by date:"))
+        filter_layout.setSpacing(8)
+        
+        filter_label = QLabel("Filter by date:")
+        filter_label.setStyleSheet(f"""
+            QLabel {{
+                font-family: {FONTS['primary']};
+                font-size: 13px;
+                color: {COLORS['text_secondary']};
+            }}
+        """)
+        filter_layout.addWidget(filter_label)
         
         self.date_filter = QDateEdit()
         self.date_filter.setCalendarPopup(True)
         self.date_filter.setDate(QDate.currentDate())
         self.date_filter.setDisplayFormat("yyyy-MM-dd")
-        self.date_filter.setStyleSheet("padding: 3px;")
         self.date_filter.dateChanged.connect(self.apply_date_filter)
         filter_layout.addWidget(self.date_filter)
         
-        # Clear filter button
-        clear_filter_btn = QPushButton("All")
-        clear_filter_btn.setMaximumWidth(50)
+        # Clear filter button with modern styling - professional text
+        clear_filter_btn = QPushButton(MODERN_BUTTON_TEXT['all_sessions'])
+        clear_filter_btn.setObjectName("action_button")
+        clear_filter_btn.setStyleSheet(ACTION_BUTTON_STYLE)
+        clear_filter_btn.setMaximumWidth(90)
+        clear_filter_btn.setMinimumHeight(32)
         clear_filter_btn.clicked.connect(self.clear_date_filter)
         clear_filter_btn.setToolTip("Show all sessions")
         filter_layout.addWidget(clear_filter_btn)
         
         left_panel_layout.addLayout(filter_layout)
         
-        # Filter status label
+        # Filter status label with modern styling
         self.filter_status_label = QLabel("")
-        self.filter_status_label.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        self.filter_status_label.setStyleSheet(f"""
+            QLabel {{
+                color: {COLORS['text_muted']};
+                font-family: {FONTS['primary']};
+                font-size: 11px;
+                font-style: italic;
+                margin-bottom: 8px;
+            }}
+        """)
         left_panel_layout.addWidget(self.filter_status_label)
         
-        # Session list widget
+        # Session list widget with modern styling
         self.session_list = QListWidget()
-        self.session_list.setStyleSheet(
-            """
-            QListWidget {
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                background-color: white;
-                font-size: 10pt;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #e0e0e0;
-                color: #333333;
-            }
-            QListWidget::item:selected {
-                background-color: #1976D2;
-                color: white;
-                font-weight: bold;
-            }
-            QListWidget::item:hover {
-                background-color: #e3f2fd;
-                color: #000000;
-            }
-            """
-        )
         self.session_list.itemClicked.connect(self.on_session_clicked)
-        self.session_list.setMinimumHeight(300)
+        self.session_list.setMinimumHeight(350)
         left_panel_layout.addWidget(self.session_list)
         
-        # Session info/stats at bottom
+        # Session info/stats at bottom with modern card styling
         self.session_stats_label = QLabel("Select a session to view insights")
-        self.session_stats_label.setStyleSheet(
-            "padding: 10px; background-color: #f0f0f0; color: #333333; border-radius: 5px; font-size: 9pt;"
-        )
+        self.session_stats_label.setStyleSheet(f"""
+            QLabel {{
+                padding: 16px;
+                background-color: {COLORS['bg_card']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_light']};
+                border-radius: 8px;
+                font-family: {FONTS['primary']};
+                font-size: 12px;
+                line-height: 1.4;
+            }}
+        """)
         self.session_stats_label.setWordWrap(True)
         left_panel_layout.addWidget(self.session_stats_label)
         
@@ -509,57 +541,49 @@ class TranscriptionGUI(QMainWindow):
         # Create a splitter for resizable sections
         splitter = QSplitter(Qt.Orientation.Vertical)
         
-        # Key Points Section
-        key_points_group = QGroupBox("🔑 Key Points")
+        # Key Points Section with modern styling - professional header
+        key_points_group = QGroupBox(MODERN_HEADERS['key_points'])
         key_points_layout = QVBoxLayout()
+        key_points_layout.setContentsMargins(16, 16, 16, 16)
         self.key_points_text = QTextEdit()
         self.key_points_text.setReadOnly(True)
-        self.key_points_text.setFont(QFont("Arial", 11))
-        self.key_points_text.setStyleSheet(
-            "background-color: #E8F5E9; color: #1B5E20; padding: 10px; font-weight: 500;"
-        )
+        self.key_points_text.setStyleSheet(get_textedit_style(COLORS['accent_success']))
         self.key_points_text.setPlaceholderText("Key points will appear here as the AI identifies them...")
         key_points_layout.addWidget(self.key_points_text)
         key_points_group.setLayout(key_points_layout)
         splitter.addWidget(key_points_group)
         
-        # Decisions Section
-        decisions_group = QGroupBox("✅ Decisions")
+        # Decisions Section with modern styling - professional header
+        decisions_group = QGroupBox(MODERN_HEADERS['decisions'])
         decisions_layout = QVBoxLayout()
+        decisions_layout.setContentsMargins(16, 16, 16, 16)
         self.decisions_text = QTextEdit()
         self.decisions_text.setReadOnly(True)
-        self.decisions_text.setFont(QFont("Arial", 11))
-        self.decisions_text.setStyleSheet(
-            "background-color: #FFF3E0; color: #BF360C; padding: 10px; font-weight: 500;"
-        )
+        self.decisions_text.setStyleSheet(get_textedit_style(COLORS['accent_warning']))
         self.decisions_text.setPlaceholderText("Decisions made during the meeting will appear here...")
         decisions_layout.addWidget(self.decisions_text)
         decisions_group.setLayout(decisions_layout)
         splitter.addWidget(decisions_group)
         
-        # Action Items Section
-        action_items_group = QGroupBox("📋 Action Items")
+        # Action Items Section with modern styling - professional header
+        action_items_group = QGroupBox(MODERN_HEADERS['action_items'])
         action_items_layout = QVBoxLayout()
+        action_items_layout.setContentsMargins(16, 16, 16, 16)
         self.action_items_text = QTextEdit()
         self.action_items_text.setReadOnly(True)
-        self.action_items_text.setFont(QFont("Arial", 11))
-        self.action_items_text.setStyleSheet(
-            "background-color: #E3F2FD; color: #01579B; padding: 10px; font-weight: 500;"
-        )
+        self.action_items_text.setStyleSheet(get_textedit_style(COLORS['accent_info']))
         self.action_items_text.setPlaceholderText("Action items and tasks will appear here...")
         action_items_layout.addWidget(self.action_items_text)
         action_items_group.setLayout(action_items_layout)
         splitter.addWidget(action_items_group)
         
-        # Follow-up Questions Section
-        questions_group = QGroupBox("❓ Follow-up Questions")
+        # Follow-up Questions Section with modern styling - professional header
+        questions_group = QGroupBox(MODERN_HEADERS['follow_up_questions'])
         questions_layout = QVBoxLayout()
+        questions_layout.setContentsMargins(16, 16, 16, 16)
         self.questions_text = QTextEdit()
         self.questions_text.setReadOnly(True)
-        self.questions_text.setFont(QFont("Arial", 11))
-        self.questions_text.setStyleSheet(
-            "background-color: #F3E5F5; color: #4A148C; padding: 10px; font-weight: 500;"
-        )
+        self.questions_text.setStyleSheet(get_textedit_style(COLORS['accent_neutral']))
         self.questions_text.setPlaceholderText("AI-suggested follow-up questions will appear here...")
         questions_layout.addWidget(self.questions_text)
         questions_group.setLayout(questions_layout)
@@ -568,8 +592,8 @@ class TranscriptionGUI(QMainWindow):
         right_panel_layout.addWidget(splitter)
         insights_main_layout.addWidget(right_panel)
         
-        # Add insights tab to tab widget
-        self.tab_widget.addTab(insights_tab, "🤖 AI Insights")
+        # Add insights tab to tab widget - professional name
+        self.tab_widget.addTab(insights_tab, MODERN_HEADERS['insights_tab'])
         
         # Populate session list on startup
         self.refresh_session_list()
@@ -577,48 +601,71 @@ class TranscriptionGUI(QMainWindow):
     def setup_private_chat_ui(self, transcription_layout):
         """Setup the private AI chat interface at bottom of transcription tab."""
         
-        # Main chat group
-        self.chat_group = QGroupBox("🤖 Private AI Chat")
+        # Main chat group with modern styling - professional header
+        self.chat_group = QGroupBox(MODERN_HEADERS['private_chat'])
         chat_layout = QVBoxLayout()
+        chat_layout.setSpacing(16)
+        chat_layout.setContentsMargins(20, 20, 20, 20)
         
-        # Chat history display
+        # Chat history display with modern styling
         self.chat_history_text = QTextEdit()
         self.chat_history_text.setReadOnly(True)
-        self.chat_history_text.setFont(QFont("Courier", 10))
-        self.chat_history_text.setMaximumHeight(250)
-        self.chat_history_text.setStyleSheet(
-            "background-color: #F5F5F5; color: #000000; padding: 10px;"
-        )
+        self.chat_history_text.setMaximumHeight(280)
+        self.chat_history_text.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {COLORS['bg_secondary']};
+                border: 1px solid {COLORS['border_light']};
+                border-radius: 8px;
+                padding: 16px;
+                font-family: {FONTS['primary']};
+                font-size: 13px;
+                line-height: 1.5;
+                color: {COLORS['text_primary']};
+            }}
+        """)
         self.chat_history_text.setPlaceholderText(
             "💬 Ask questions about the meeting transcript...\n\n"
             "Start transcription to enable chat."
         )
         chat_layout.addWidget(self.chat_history_text)
         
-        # Common questions buttons
+        # Common questions buttons with modern styling
         common_q_label = QLabel("Quick Questions:")
-        common_q_label.setStyleSheet("font-weight: bold; margin-top: 5px;")
+        common_q_label.setStyleSheet(f"""
+            QLabel {{
+                font-family: {FONTS['primary']};
+                font-size: 14px;
+                font-weight: 600;
+                color: {COLORS['text_primary']};
+                margin-top: 8px;
+                margin-bottom: 8px;
+            }}
+        """)
         chat_layout.addWidget(common_q_label)
         
-        # Create button grid (2 rows)
+        # Create button grid (2 rows) with modern styling
         button_container = QWidget()
         button_grid = QVBoxLayout()
+        button_grid.setSpacing(12)
         button_container.setLayout(button_grid)
         
         # First row of buttons
         button_row1 = QHBoxLayout()
+        button_row1.setSpacing(12)
         self.chat_buttons = {}
         
         buttons_row1 = [
-            ("last_said", "📝 Last Said"),
-            ("who_spoke", "👤 Who Spoke"),
-            ("action_items", "📋 Action Items"),
-            ("main_topic", "🎯 Main Topic"),
+            ("last_said", MODERN_CHAT_BUTTONS['last_said']),
+            ("who_spoke", MODERN_CHAT_BUTTONS['who_spoke']),
+            ("action_items", MODERN_CHAT_BUTTONS['action_items']),
+            ("main_topic", MODERN_CHAT_BUTTONS['main_topic']),
         ]
         
         for btn_id, btn_text in buttons_row1:
             btn = QPushButton(btn_text)
-            btn.setMinimumHeight(35)
+            btn.setObjectName("action_button")
+            btn.setStyleSheet(ACTION_BUTTON_STYLE)
+            btn.setMinimumHeight(40)
             btn.clicked.connect(lambda checked, id=btn_id: self.ask_common_question(id))
             btn.setEnabled(False)  # Disabled until transcription starts
             self.chat_buttons[btn_id] = btn
@@ -628,15 +675,18 @@ class TranscriptionGUI(QMainWindow):
         
         # Second row of buttons
         button_row2 = QHBoxLayout()
+        button_row2.setSpacing(12)
         buttons_row2 = [
-            ("concerns", "⚠️ Concerns"),
-            ("next_steps", "➡️ Next Steps"),
-            ("decisions", "✅ Decisions"),
+            ("concerns", MODERN_CHAT_BUTTONS['concerns']),
+            ("next_steps", MODERN_CHAT_BUTTONS['next_steps']),
+            ("decisions", MODERN_CHAT_BUTTONS['decisions']),
         ]
         
         for btn_id, btn_text in buttons_row2:
             btn = QPushButton(btn_text)
-            btn.setMinimumHeight(35)
+            btn.setObjectName("action_button")
+            btn.setStyleSheet(ACTION_BUTTON_STYLE)
+            btn.setMinimumHeight(40)
             btn.clicked.connect(lambda checked, id=btn_id: self.ask_common_question(id))
             btn.setEnabled(False)  # Disabled until transcription starts
             self.chat_buttons[btn_id] = btn
@@ -645,27 +695,42 @@ class TranscriptionGUI(QMainWindow):
         button_grid.addLayout(button_row2)
         chat_layout.addWidget(button_container)
         
-        # Custom question input
+        # Custom question input with modern styling
         custom_layout = QHBoxLayout()
-        custom_layout.addWidget(QLabel("Custom Question:"))
+        custom_layout.setSpacing(12)
+        
+        custom_label = QLabel("Custom Question:")
+        custom_label.setStyleSheet(f"""
+            QLabel {{
+                font-family: {FONTS['primary']};
+                font-size: 14px;
+                font-weight: 500;
+                color: {COLORS['text_secondary']};
+            }}
+        """)
+        custom_layout.addWidget(custom_label)
         
         self.chat_input = QLineEdit()
         self.chat_input.setPlaceholderText("Type your question here...")
-        self.chat_input.setMinimumHeight(30)
+        self.chat_input.setMinimumHeight(40)
         self.chat_input.returnPressed.connect(self.ask_custom_question)
         self.chat_input.setEnabled(False)  # Disabled until transcription starts
         custom_layout.addWidget(self.chat_input)
         
-        self.chat_ask_btn = QPushButton("Ask")
-        self.chat_ask_btn.setMinimumHeight(30)
-        self.chat_ask_btn.setMinimumWidth(80)
+        self.chat_ask_btn = QPushButton(MODERN_BUTTON_TEXT['ask'])
+        self.chat_ask_btn.setObjectName("secondary_button")
+        self.chat_ask_btn.setStyleSheet(SECONDARY_BUTTON_STYLE)
+        self.chat_ask_btn.setMinimumHeight(40)
+        self.chat_ask_btn.setMinimumWidth(90)
         self.chat_ask_btn.clicked.connect(self.ask_custom_question)
         self.chat_ask_btn.setEnabled(False)  # Disabled until transcription starts
         custom_layout.addWidget(self.chat_ask_btn)
         
-        self.chat_clear_btn = QPushButton("Clear")
-        self.chat_clear_btn.setMinimumHeight(30)
-        self.chat_clear_btn.setMinimumWidth(80)
+        self.chat_clear_btn = QPushButton(MODERN_BUTTON_TEXT['clear'])
+        self.chat_clear_btn.setObjectName("action_button")
+        self.chat_clear_btn.setStyleSheet(ACTION_BUTTON_STYLE)
+        self.chat_clear_btn.setMinimumHeight(40)
+        self.chat_clear_btn.setMinimumWidth(90)
         self.chat_clear_btn.clicked.connect(lambda: self.chat_input.clear())
         custom_layout.addWidget(self.chat_clear_btn)
         
@@ -772,7 +837,7 @@ class TranscriptionGUI(QMainWindow):
                     items_added += 1
                 except Exception as e:
                     # If parsing fails, just use folder name
-                    print(f"⚠️ Error parsing session {folder_name}: {e}")
+                    print(f"[WARNING] Error parsing session {folder_name}: {e}")
                     item = QListWidgetItem(folder_name)
                     item.setData(Qt.ItemDataRole.UserRole, folder_name)
                     self.session_list.addItem(item)
@@ -783,7 +848,7 @@ class TranscriptionGUI(QMainWindow):
             item.setForeground(QColor("#666666"))
             self.session_list.addItem(item)
         
-        print(f"✅ Loaded {items_added} past sessions")
+        print(f"[OK] Loaded {items_added} past sessions")
     
     def update_session_stats(self, session_folder):
         """Update the session stats label with information about the selected session."""
@@ -1093,7 +1158,7 @@ class TranscriptionGUI(QMainWindow):
                 except Exception:
                     break
             if queued_count > 0:
-                print(f"🗑️ Cleared {queued_count} pending translations")
+                print(f"[CLEAR] Cleared {queued_count} pending translations")
             
             # Save all recent transcriptions as "seen before TTS"
             # Include both MIC and SYSTEM texts + items already queued
@@ -1108,7 +1173,7 @@ class TranscriptionGUI(QMainWindow):
                 text_hash = text.lower().strip().replace(" ", "")
                 self.seen_before_tts.add(text_hash)
             
-            print(f"🗑️ Marked {len(self.seen_before_tts)} old texts to skip")
+            print(f"[CLEAR] Marked {len(self.seen_before_tts)} old texts to skip")
             
             # Start translation worker if not running
             if not self.translation_worker_running:
@@ -1119,7 +1184,7 @@ class TranscriptionGUI(QMainWindow):
                     daemon=True
                 )
                 worker_thread.start()
-                print("🔄 Started translation worker thread")
+                print("[REFRESH] Started translation worker thread")
             
             # Mark the time when TTS was enabled
             import time
@@ -1151,7 +1216,7 @@ class TranscriptionGUI(QMainWindow):
                     self.translation_queue.get_nowait()
                 except:
                     break
-            print("🗑️ Cleared translation queue")
+            print("[CLEAR] Cleared translation queue")
             
             # Clear the "seen before" set for next time TTS is enabled
             self.seen_before_tts.clear()
@@ -1195,7 +1260,7 @@ class TranscriptionGUI(QMainWindow):
                 self.logger.log_system_event("TTS playback started")
                 self.tts_controller.speak()
             else:
-                print("⚠️ No translation audio ready to speak")
+                print("[WARNING] No translation audio ready to speak")
     
     def on_tts_state_change(self, state: str):
         """Handle TTS controller state changes."""
@@ -1228,10 +1293,15 @@ class TranscriptionGUI(QMainWindow):
     
     def update_speak_button(self, text: str, enabled: bool):
         """Update speak button (thread-safe)."""
-        print(f"🎛️ Updating button: text='{text}', enabled={enabled}")
+        print(f"[CONTROL] Updating button: text='{text}', enabled={enabled}")
+        # Use modern button text mapping
+        if text == "Speak to Mic":
+            text = MODERN_BUTTON_TEXT['speak_to_mic']
+        elif text == "Stop Speaking":
+            text = MODERN_BUTTON_TEXT['stop_speaking']
         self.speak_btn.setText(text)
         self.speak_btn.setEnabled(enabled)
-        print(f"🎛️ Button updated: isEnabled={self.speak_btn.isEnabled()}")
+        print(f"[CONTROL] Button updated: isEnabled={self.speak_btn.isEnabled()}")
     
     def set_api_status(self, message: str):
         """Update API status label (thread-safe via signal)."""
@@ -1358,7 +1428,7 @@ class TranscriptionGUI(QMainWindow):
                             error_msg = (
                                 f"TTS generation failed:\n{str(tts_error)}"
                             )
-                            print(f"❌ {error_msg}")
+                            print(f"[ERROR] {error_msg}")
                             self.signals.show_warning.emit(error_msg)
                     
                 except ConnectionError as conn_err:
@@ -1368,7 +1438,7 @@ class TranscriptionGUI(QMainWindow):
                         f"Check your network/VPN connection.\n\n"
                         f"Details: {str(conn_err)}"
                     )
-                    print(f"❌ {error_msg}")
+                    print(f"[ERROR] {error_msg}")
                     self.signals.show_warning.emit(error_msg)
                     
                 except TimeoutError as timeout_err:
@@ -1377,7 +1447,7 @@ class TranscriptionGUI(QMainWindow):
                         f"Translation service not responding.\n\n"
                         f"Details: {str(timeout_err)}"
                     )
-                    print(f"❌ {error_msg}")
+                    print(f"[ERROR] {error_msg}")
                     self.signals.show_warning.emit(error_msg)
                     
                 except Exception as translation_error:
@@ -1386,7 +1456,7 @@ class TranscriptionGUI(QMainWindow):
                         f"{str(translation_error)}\n\n"
                         f"Text: {text[:50]}..."
                     )
-                    print(f"❌ {error_msg}")
+                    print(f"[ERROR] {error_msg}")
                     self.signals.show_warning.emit(error_msg)
                     
             except Exception as e:
@@ -1394,7 +1464,7 @@ class TranscriptionGUI(QMainWindow):
                     f"Translation worker error:\n{str(e)}\n\n"
                     f"Type: {type(e).__name__}"
                 )
-                print(f"❌ {error_msg}")
+                print(f"[ERROR] {error_msg}")
                 self.signals.show_warning.emit(error_msg)
     
     def append_translation(
@@ -1429,7 +1499,7 @@ class TranscriptionGUI(QMainWindow):
     def update_status(self, running: bool):
         """Update status indicator (fox animation) and buttons."""
         if running:
-            self.start_stop_btn.setText("⏸ Stop Transcription")
+            self.start_stop_btn.setText(MODERN_BUTTON_TEXT['stop_transcription'])
             
             # Start dancing fox animation
             self.fox_label.setMovie(self.animated_fox)
@@ -1496,7 +1566,7 @@ class TranscriptionGUI(QMainWindow):
             # Enable chat buttons
             self.signals.update_chat_buttons.emit(True)
         else:
-            self.start_stop_btn.setText("▶ Start Transcription")
+            self.start_stop_btn.setText(MODERN_BUTTON_TEXT['start_transcription'])
             self.logger.log_system_event("Transcription session paused")
             
             # Stop dancing fox animation and show static image
@@ -1538,7 +1608,7 @@ class TranscriptionGUI(QMainWindow):
             minutes = (elapsed % 3600) // 60
             seconds = elapsed % 60
             self.timer_label.setText(
-                f"⏱️ {hours:02d}:{minutes:02d}:{seconds:02d}"
+                f"{hours:02d}:{minutes:02d}:{seconds:02d}"
             )
     
     def check_auto_pause(self):
@@ -2042,12 +2112,12 @@ class TranscriptionGUI(QMainWindow):
                         # Error from LLM
                         error_msg = f"LLM Error: {answer}"
                         self.signals.show_chat_error.emit(error_msg)
-                        print(f"❌ {error_msg}")
+                        print(f"[ERROR] {error_msg}")
                 
                 except Exception as e:
                     error_msg = f"Chat processing error: {str(e)}"
                     self.signals.show_chat_error.emit(error_msg)
-                    print(f"❌ {error_msg}")
+                    print(f"[ERROR] {error_msg}")
                     import traceback
                     traceback.print_exc()
                 

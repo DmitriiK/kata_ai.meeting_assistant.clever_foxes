@@ -54,10 +54,10 @@ class TTSVoiceManager:
                         language_code=lang_code
                     )
                     
-            print(f"✅ Loaded {len(self.voices)} language configurations")
+            print(f"Loaded {len(self.voices)} language configurations")
             
         except Exception as e:
-            print(f"⚠️ Error loading TTS voices: {e}")
+            print(f"Error loading TTS voices: {e}")
             self.voices = {}
             
     def get_voice(self, language_code: str, sex: Optional[str] = None) -> Optional[Voice]:

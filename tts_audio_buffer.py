@@ -53,7 +53,7 @@ class TTSAudioBuffer:
         lang_code = self.voice_manager.get_language_code(language_name)
         
         if not lang_code:
-            print(f"⚠️ Language '{language_name}' not found")
+            print(f"[WARNING] Language '{language_name}' not found")
             return
         
         # Get voice
@@ -62,9 +62,9 @@ class TTSAudioBuffer:
         if voice:
             self.current_voice = voice.name
             self.speech_config.speech_synthesis_voice_name = voice.name
-            print(f"🎤 Voice set to: {voice.name} ({voice.language})")
+            print(f"[MIC] Voice set to: {voice.name} ({voice.language})")
         else:
-            print(f"⚠️ No voice found for {language_name}")
+            print(f"[WARNING] No voice found for {language_name}")
     
     def generate_async(
         self,
@@ -111,14 +111,14 @@ class TTSAudioBuffer:
                             callback(True, "TTS generation successful")
                     else:
                         error_msg = f"TTS failed: {result.reason}"
-                        print(f"❌ {error_msg}")
+                        print(f"[ERROR] {error_msg}")
                         
                         if callback:
                             callback(False, error_msg)
                             
                 except Exception as e:
                     error_msg = f"TTS generation error: {e}"
-                    print(f"❌ {error_msg}")
+                    print(f"[ERROR] {error_msg}")
                     
                     if callback:
                         callback(False, error_msg)

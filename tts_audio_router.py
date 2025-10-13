@@ -73,7 +73,7 @@ class TTSAudioRouter:
                     print(f"  [{i}] {info['name']}")
                     
         except Exception as e:
-            print(f"❌ Error finding virtual device: {e}")
+            print(f"ERROR: Error finding virtual device: {e}")
     
     def play_audio(
         self,
@@ -98,14 +98,14 @@ class TTSAudioRouter:
         mixer = get_mixer()
         
         if not mixer.is_running:
-            print("❌ Cannot play: audio mixer not running")
+            print("[ERROR] Cannot play: audio mixer not running")
             print("   Call audio_mixer.start_mixer() first")
             if on_stopped:
                 on_stopped()
             return
         
         if self.is_playing:
-            print("⚠️ Already playing audio")
+            print("[WARNING] Already playing audio")
             return
         
         def _play():
@@ -156,9 +156,9 @@ class TTSAudioRouter:
                                 rate=48000,
                                 output=True
                             )
-                            print("🔊 Playing TTS to local speakers...")
+                            print("[AUDIO] Playing TTS to local speakers...")
                         except Exception as e:
-                            print(f"⚠️ Could not open local playback: {e}")
+                            print(f"[WARNING] Could not open local playback: {e}")
                             local_stream = None
                     
                     # Play audio in chunks if local playback enabled
@@ -166,7 +166,7 @@ class TTSAudioRouter:
                         chunk_size = 4096
                         for i in range(0, len(audio_resampled), chunk_size):
                             if self.stop_event.is_set():
-                                print("⏹️ Playback stopped by user")
+                                print("[STOP] Playback stopped by user")
                                 break
                             
                             chunk = audio_resampled[i:i + chunk_size]
@@ -175,7 +175,7 @@ class TTSAudioRouter:
                     # Wait for TTS to finish in mixer
                     while mixer.is_tts_active():
                         if self.stop_event.is_set():
-                            print("⏹️ Playback stopped by user")
+                            print("[STOP] Playback stopped by user")
                             self.is_playing = False
                             
                             if on_stopped:
@@ -184,13 +184,13 @@ class TTSAudioRouter:
                         
                         time.sleep(0.1)
                     
-                    print("✅ TTS playback complete")
+                    print("[OK] TTS playback complete")
                     
                     if on_complete:
                         on_complete()
                         
                 except Exception as e:
-                    print(f"❌ Playback error: {e}")
+                    print(f"[ERROR] Playback error: {e}")
                     
                     if on_stopped:
                         on_stopped()
@@ -214,9 +214,9 @@ class TTSAudioRouter:
         """Stop current playback."""
         if self.is_playing:
             self.stop_event.set()
-            print("🛑 Stopping playback...")
+            print("[STOP] Stopping playback...")
         else:
-            print("⚠️ No playback in progress")
+            print("[WARNING] No playback in progress")
     
     def is_busy(self) -> bool:
         """
@@ -246,7 +246,7 @@ if __name__ == "__main__":
     # Start mixer first
     print("Starting audio mixer...")
     if not start_mixer():
-        print("❌ Failed to start mixer")
+        print("[ERROR] Failed to start mixer")
         exit(1)
     
     time.sleep(1)  # Let mixer initialize
@@ -267,10 +267,10 @@ if __name__ == "__main__":
     audio_data = (samples * 32767).astype(np.int16).tobytes()
     
     def on_complete():
-        print("✅ Test complete!")
+        print("[OK] Test complete!")
     
     def on_stopped():
-        print("⏹️ Test stopped early")
+        print("[STOP] Test stopped early")
     
     router.play_audio(audio_data, on_complete, on_stopped)
     
