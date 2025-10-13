@@ -1,6 +1,10 @@
 # AI-Powered Meeting Assistant 🦊
 
+![Meeting Assistant GUI](static/gui.png)
+
 An intelligent meeting assistant that combines real-time transcription with AI-powered insights to enhance meeting productivity and capture important information automatically. Built by Team Clever Foxes for the Kata.ai challenge.
+
+> **📢 Important:** To capture audio from meeting apps (Teams, Zoom, etc.), you need to configure virtual audio devices. See the **[Audio Device Setup Guide](AUDIO_DEVICE_SETUP.md)** for complete instructions with screenshots.
 
 ## Table of Contents
 
@@ -897,21 +901,34 @@ System Audio → Multi-Output → Speakers ✅ (you hear it)
 
 ### Meeting App Compatibility
 
-✅ **Works with all meeting platforms:**
-
-- Microsoft Teams
-- Zoom
+**Browser-based meetings (✅ Full Support):**
+- Microsoft Teams (Web)
+- Zoom (Web)
 - Google Meet
+- Any browser-based meeting platform
+
+**Desktop apps (⚠️ Limited - See Note Below):**
+- Microsoft Teams (Desktop)
+- Zoom (Desktop)
 - Discord
 - Slack
-- WhatsApp
-- Any app that produces audio
+- Telegram
+
+**⚠️ IMPORTANT:** Desktop meeting apps (Teams, Zoom) use **protected audio streams** that may prevent system audio capture with standard BlackHole/VB-Cable setup. 
+
+**Solutions:**
+1. **Use browser versions** of meeting apps (Teams Web, Zoom Web) - Works perfectly ✅
+2. **Use Loopback** by Rogue Amoeba ($99) for app-specific audio routing - Professional solution ✅
+3. **Configure meeting app** to output to BlackHole directly - May lose audio in your speakers ⚠️
+
+**📖 See detailed troubleshooting:** [AUDIO_DEVICE_SETUP.md - Meeting Apps Not Captured](AUDIO_DEVICE_SETUP.md#️-meeting-apps-not-captured-teams-zoom)
+
+**Why this happens:** Meeting apps prioritize audio quality and use exclusive hardware access, bypassing the system audio mixer that BlackHole captures from. Browser audio goes through the regular system mixer and works fine.
 
 **Configuration:**
-
 - Keep normal microphone in meeting app
 - Multi-Output handles routing at system level
-- No special meeting app settings needed
+- For desktop apps, additional configuration may be needed (see guide)
 
 ---
 
@@ -929,8 +946,16 @@ System Audio → Multi-Output → Speakers ✅ (you hear it)
 
 - ✅ Verify Multi-Output Device is system default
 - ✅ Check BlackHole is included in Multi-Output
-- ✅ Test with: `say "testing"` (macOS)
+- ✅ Test with: `say "testing"` (macOS) or YouTube video
 - ✅ Restart app after changing audio settings
+
+**Problem: YouTube works but Teams/Zoom desktop app doesn't**
+
+- ⚠️ This is a **known limitation** - meeting apps use protected audio streams
+- ✅ **Solution 1 (Best)**: Use browser versions (teams.microsoft.com, zoom.us/join)
+- ✅ **Solution 2**: Install Loopback by Rogue Amoeba for app-specific routing
+- ✅ **Solution 3**: Configure meeting app to output to BlackHole directly
+- 📖 See detailed guide: [AUDIO_DEVICE_SETUP.md](AUDIO_DEVICE_SETUP.md#️-meeting-apps-not-captured-teams-zoom)
 
 **Problem: TTS translation issues**
 

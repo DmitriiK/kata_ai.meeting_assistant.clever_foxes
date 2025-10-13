@@ -122,16 +122,36 @@ system_profiler SPAudioDataType | grep -i blackhole
    - Click **BlackHole 2ch** in the list → Check **"Drift Correction"** ✅
 6. **(Optional)** Rename to **"Mic + BlackHole"**
 
+**Visual Guide:**
+
+![Aggregate Device Setup](../static/aggregate-device-setup.png)
+
+**Key points in the screenshot:**
+- ✅ Jabra EVOLVE 20 MS is FIRST (leftmost) in Subdevices
+- ✅ Both devices have Drift Correction enabled
+- ✅ Clock Source is set to your real microphone
+
 ### Step 3: Create Multi-Output Device (BlackHole + Speakers)
 
-**Sends TTS to BlackHole AND your speakers**
+**Sends audio to BlackHole AND your speakers simultaneously**
 
 1. In Audio MIDI Setup, click **"+"** → **"Create Multi-Output Device"**
 2. Check both:
    - ☑️ **BlackHole 2ch**
-   - ☑️ **Your Speakers/Headphones**
+   - ☑️ **Your Speakers/Headphones** (e.g., Jabra EVOLVE 20 MS)
 3. Click BlackHole → Check **"Drift Correction"**
-4. **(Optional)** Rename to **"BlackHole + Speakers"**
+4. Set **Primary Device** to your speakers for proper audio routing
+5. **(Optional)** Rename to **"BlackHole + Speakers"** or **"Multi-Output Device"**
+
+**Visual Guide:**
+
+![Multi-Output Device Setup](../static/multi-output-device-setup.png)
+
+**Key points in the screenshot:**
+- ✅ Both Jabra EVOLVE (speakers) and BlackHole 2ch are checked
+- ✅ Drift Correction is enabled on BlackHole
+- ✅ Primary Device is set to Jabra EVOLVE 20 MS 2
+- ⚠️ This device will be used as **Speaker** in Teams desktop app!
 
 ### Step 4: Configure System Settings
 
@@ -188,10 +208,24 @@ pactl set-default-sink virtual_speaker
 
 ## Meeting Application Configuration
 
-**Device to select as microphone:**
-- **macOS**: "Mic + BlackHole" (Aggregate Device)
+**⚠️ CRITICAL FOR DESKTOP APPS (Teams, Zoom):**
+
+To capture audio from desktop meeting applications, you **MUST** configure BOTH:
+
+**Microphone:**
+- **macOS**: "Aggregate Device" (your Mic + BlackHole device)
 - **Windows (VB-Cable)**: "CABLE Output"
 - **Windows (VoiceMeeter)**: "VoiceMeeter Output"
+
+**Speaker (⚠️ IMPORTANT):**
+- **macOS**: "Multi-Output Device" (BlackHole + Speakers)
+- **Windows (VB-Cable)**: "CABLE Input"
+- **Windows (VoiceMeeter)**: "VoiceMeeter Input"
+
+**Why speaker matters:**
+Desktop meeting apps use protected audio that bypasses system routing. Setting the speaker explicitly to your Multi-Output Device forces audio through BlackHole for capture while still playing through your speakers.
+
+**Browser-based apps (teams.microsoft.com, zoom.us) don't need speaker configuration - they work automatically!**
 
 ### Telegram Desktop
 
@@ -208,9 +242,31 @@ pactl set-default-sink virtual_speaker
 
 ### Microsoft Teams
 
+**⚠️ IMPORTANT FOR TEAMS DESKTOP APP:**
+
+To capture Teams audio, you MUST set the speaker output to your Multi-Output Device.
+
 1. **Profile** → **Settings** → **Devices**
-2. **Microphone**: Select your aggregate/virtual device
-3. **Speakers**: Keep as regular speakers
+2. **Microphone**: Select **"Aggregate Device"** (your aggregate device)
+3. **Speaker**: Select **"Multi-Output Device"** ⚠️ (NOT your regular speakers!)
+
+**Why this is necessary:**
+- Teams desktop app uses protected audio streams that bypass system audio routing
+- Setting Teams speaker to Multi-Output Device forces audio through BlackHole
+- You'll still hear calls because Multi-Output includes both BlackHole AND your speakers
+
+**Visual Guide:**
+
+![Teams Audio Settings](../static/teams-audio-settings.png)
+
+**Configuration checklist:**
+- ✅ Microphone: Aggregate Device
+- ✅ Speaker: Multi-Output Device
+- ✅ Automatically adjust mic sensitivity: On (recommended)
+
+**Alternative for Teams Web:**
+- If using browser version (teams.microsoft.com), keep speakers as regular output
+- Browser audio is captured automatically through system audio routing
 
 ### Discord
 
@@ -285,6 +341,148 @@ python -c "import pyaudio; p = pyaudio.PyAudio(); [print(f'{i}: {p.get_device_in
 **Audio choppy:**
 - ✅ Enable "Drift Correction" 
 - ✅ Increase buffer size in code: `tts_audio_router.py` line 110 (1024 → 2048)
+
+### ⚠️ Meeting Apps Not Captured (Teams, Zoom)
+
+**Problem:** YouTube/browser audio works, but Teams/Zoom audio is NOT captured by the app.
+
+**Root Cause:** Meeting applications use **protected audio streams** or **exclusive audio modes** that bypass the system audio mixer, preventing BlackHole/VB-Cable from capturing their output.
+
+**Why It Happens:**
+- Meeting apps prioritize audio quality and use direct hardware access
+- They may use exclusive WASAPI mode (Windows) or CoreAudio HAL (macOS)
+- Security/DRM features prevent system-level audio capture
+- Browser audio (YouTube) works because it goes through the regular system mixer
+
+**Solutions:**
+
+#### ✅ Solution 1: Configure Meeting App to Use Multi-Output Device (RECOMMENDED & FREE)
+
+**This is the BEST solution for desktop meeting apps!**
+
+**For Teams:**
+1. Teams → Settings → Devices
+2. **Speaker**: Select **"Multi-Output Device"** (the one you created in Step 3)
+3. **Microphone**: Select **"Aggregate Device"**
+4. Test: You should hear calls AND Meeting Assistant should capture audio ✅
+
+**For Zoom:**
+1. Zoom → Settings → Audio
+2. **Speaker**: Select **"Multi-Output Device"**
+3. **Microphone**: Select **"Aggregate Device"**
+4. Test call to verify
+
+**Why this works:**
+- You explicitly tell the meeting app to output to Multi-Output Device
+- Multi-Output includes both BlackHole (for capture) AND your speakers (so you hear it)
+- No additional software needed!
+- Works with full desktop app features (screen sharing, etc.)
+
+**See screenshot:** [Teams Audio Settings](../static/teams-audio-settings.png)
+
+#### Solution 2: Use App-Specific Audio Routing (macOS - Professional)
+
+Install commercial audio routing software that can capture individual app audio:
+
+**Loopback by Rogue Amoeba** ($99) - **BEST SOLUTION**
+- https://rogueamoeba.com/loopback/
+- Create virtual audio source from specific apps
+- Route Teams/Zoom → Virtual Device → Meeting Assistant
+- Non-invasive, works with all meeting apps
+- **Setup:**
+  1. Install Loopback
+  2. Create new virtual device
+  3. Add Teams/Zoom as audio source
+  4. Route to BlackHole or new virtual output
+  5. Set Meeting Assistant to capture this device
+
+**Audio Hijack** ($64) - Alternative
+- https://rogueamoeba.com/audiohijack/
+- Record specific application audio
+- More complex but powerful
+
+**SoundSource** ($39) - Simpler option
+- https://rogueamoeba.com/soundsource/
+- Per-app audio routing
+- Easier to use but less flexible
+
+#### Solution 2: Use Meeting App Settings (Partial Solution)
+
+Some meeting apps allow output device selection:
+
+**Teams:**
+1. Settings → Devices
+2. **Speaker**: Set to "BlackHole 2ch" instead of regular speakers
+3. **Limitation**: You won't hear the call through your regular speakers
+4. **Workaround**: Use Multi-Output Device (BlackHole + Speakers)
+
+**Zoom:**
+1. Settings → Audio
+2. **Speaker**: Set to "BlackHole 2ch"
+3. Same limitations as Teams
+
+**⚠️ Important:** This means the meeting app will output to BlackHole, but you may need to adjust your Multi-Output Device configuration.
+
+#### Solution 3: Browser-Based Meetings (Workaround)
+
+Use **browser versions** of meeting apps instead of desktop apps:
+- ✅ Teams Web (teams.microsoft.com)
+- ✅ Zoom Web (zoom.us/join)
+- ✅ Google Meet (meet.google.com)
+
+Browser audio goes through the system mixer and CAN be captured by BlackHole!
+
+**Steps:**
+1. Join meetings via browser instead of desktop app
+2. Keep your existing BlackHole/Multi-Output setup
+3. Browser audio will be captured automatically ✅
+
+**Limitations:**
+- Some features may be missing in web versions
+- Browser performance may be lower
+- Camera/screenshare might be limited
+
+#### Solution 4: Screen Recording Audio (macOS)
+
+Use macOS built-in screen recording with audio capture:
+
+1. Open **QuickTime Player** → **File** → **New Screen Recording**
+2. Click **Options** → Select **BlackHole 2ch** as microphone
+3. Record during meeting
+4. Use recorded audio file later with `transcribe_audio_file.py`
+
+**Limitations:**
+- Not real-time transcription
+- Post-meeting processing only
+- Creates large video files
+
+#### Solution 5: Virtual Machine or Second Device
+
+Run meeting app in VM or on second device:
+- Route audio from VM/device to main computer
+- Capture via BlackHole
+- Complex setup, not recommended for most users
+
+**Recommendation Priority:**
+
+1. **🥇 Best:** Configure meeting app speaker to Multi-Output Device - **FREE & Full Features** ✅
+2. **🥈 Good:** Browser-based meetings - Free but limited screen sharing
+3. **🥉 Professional:** Loopback by Rogue Amoeba ($99) - Advanced features
+4. **📝 Fallback:** Record and transcribe later - Not real-time
+
+#### Verification Test
+
+To verify if meeting app audio is being captured:
+
+1. **Start Meeting Assistant**: `python gui_app.py`
+2. **Join test meeting** or play test audio in meeting app
+3. **Check transcription window**: Do you see the meeting audio transcribed?
+   - ✅ **YES**: Audio is being captured
+   - ❌ **NO**: Audio is protected, use one of the solutions above
+
+**Test with YouTube first:**
+- If YouTube works but Teams doesn't → Protected audio issue
+- If YouTube also doesn't work → Configuration issue (check BlackHole setup)
 
 ---
 
