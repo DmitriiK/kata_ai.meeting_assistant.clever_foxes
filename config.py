@@ -21,6 +21,7 @@ class AudioSettings:
 class LogSettings:
     """Logging and output configuration."""
     # Main transcription log file (configurable via environment variable)
+    # Note: Logger will create timestamped files in logs/ folder
     LOG_FILE = os.getenv("TRANSCRIPTION_LOG_FILE", "transcriptions.log")
     # Show intermediate/partial results as user speaks
     SHOW_INTERIM_RESULTS = True

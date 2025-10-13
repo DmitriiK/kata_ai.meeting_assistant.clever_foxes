@@ -207,7 +207,6 @@ marimo/_lsp/
 __marimo__/
 # Generated files from meeting assistant sessions
 transcription_display.txt
-transcriptions.log
 meeting_summaries/
 meeting_summary_*.json
 meeting_summary_*.md
@@ -215,3 +214,6 @@ meeting_summary_*.md
 # Session-based generated folders (each run creates its own folder)
 sessions/
 session_*/
+
+# Application logs (both transcriptions and system events)
+logs/

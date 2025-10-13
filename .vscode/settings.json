@@ -10,5 +10,15 @@
         "**/.git/subtree-cache/**": true,
         "**/node_modules/*/**": true,
         "**/.hg/store/**": true
+    },
+    // Prevent Python from creating __pycache__ directories
+    "terminal.integrated.env.osx": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "terminal.integrated.env.linux": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "terminal.integrated.env.windows": {
+        "PYTHONDONTWRITEBYTECODE": "1"
     }
 }

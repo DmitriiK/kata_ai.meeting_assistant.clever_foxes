@@ -48,21 +48,25 @@ def test_transcription_logger():
         logger.log_info("Test info message")
         logger.log_error("Test error message")
         
-        # Check if file was created
-        if os.path.exists("test_transcriptions.log"):
+        # Check if file was created (in logs folder with timestamp)
+        if os.path.exists(logger.log_file):
             print("✅ TranscriptionLogger working successfully")
+            print(f"📁 Log file created at: {logger.log_file}")
             
             # Show log contents
-            with open("test_transcriptions.log", "r") as f:
+            with open(logger.log_file, "r") as f:
                 content = f.read()
                 print("📄 Log file contents:")
                 print(content)
             
-            # Clean up test file
-            os.remove("test_transcriptions.log")
+            # Clean up test files
+            if os.path.exists(logger.log_file):
+                os.remove(logger.log_file)
+            if os.path.exists(logger.system_log_file):
+                os.remove(logger.system_log_file)
             return True
         else:
-            print("❌ Log file was not created")
+            print(f"❌ Log file was not created at {logger.log_file}")
             return False
             
     except Exception as e:

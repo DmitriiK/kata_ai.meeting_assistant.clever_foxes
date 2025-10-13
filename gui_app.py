@@ -55,6 +55,7 @@ class SignalEmitter(QObject):
     append_chat_message = pyqtSignal(str, str, str, str)  # timestamp, type, question, answer
     update_chat_buttons = pyqtSignal(bool)  # enable/disable
     show_chat_error = pyqtSignal(str)  # error message
+    set_api_status = pyqtSignal(str)  # API operation status
 
 
 class TranscriptionGUI(QMainWindow):
@@ -158,6 +159,7 @@ class TranscriptionGUI(QMainWindow):
         self.signals.append_chat_message.connect(self.append_chat_message)
         self.signals.update_chat_buttons.connect(self.update_chat_buttons)
         self.signals.show_chat_error.connect(self.show_chat_error)
+        self.signals.set_api_status.connect(self.set_api_status)
         
         # Setup GUI
         self.setup_ui()
@@ -194,6 +196,13 @@ class TranscriptionGUI(QMainWindow):
         # Timer (initialized here, added to footer later)
         self.timer_label = QLabel("⏱️ 00:00:00")
         self.timer_label.setStyleSheet("font-size: 12pt;")
+        
+        # API Status indicator
+        self.api_status_label = QLabel("")
+        self.api_status_label.setStyleSheet(
+            "color: #666; font-size: 10pt; font-style: italic;"
+        )
+        self.api_status_label.setVisible(False)
         
         header_layout.addStretch()
         
@@ -360,9 +369,10 @@ class TranscriptionGUI(QMainWindow):
         # Connect tab change event to auto-refresh sessions
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
         
-        # Footer layout with warning indicator and timer
+        # Footer layout with warning indicator, status, and timer
         footer_layout = QHBoxLayout()
         footer_layout.addWidget(self.warning_label)
+        footer_layout.addWidget(self.api_status_label)
         footer_layout.addStretch()
         footer_layout.addWidget(self.timer_label)
         main_layout.addLayout(footer_layout)
@@ -1032,16 +1042,25 @@ class TranscriptionGUI(QMainWindow):
         
         if self.text_translation_enabled:
             self.translation_group.show()
+            target_lang = self.text_translation_language.currentText()
+            self.logger.log_system_event(
+                f"Text translation ENABLED (target: {target_lang})"
+            )
         else:
             # Hide translation window if TTS is also disabled
             if not self.tts_to_mic_enabled:
                 self.translation_group.hide()
+            self.logger.log_system_event("Text translation DISABLED")
     
     def toggle_tts_to_mic(self, state):
         """Toggle TTS to microphone feature on/off dynamically during session."""
         self.tts_to_mic_enabled = bool(state)
         
         if self.tts_to_mic_enabled:
+            target_lang = self.tts_language_selector.currentText()
+            self.logger.log_system_event(
+                f"TTS to microphone ENABLED (target: {target_lang})"
+            )
             # Check if mixer is running
             if not self.mixer_started:
                 QMessageBox.warning(
@@ -1106,6 +1125,7 @@ class TranscriptionGUI(QMainWindow):
             import time
             self.tts_enabled_at = time.time()
             print("🌍 Oral translation mode enabled")
+            self.logger.log_system_event("Oral translation mode enabled")
             
             # Add system message to Final Results
             timestamp = time.strftime("%H:%M:%S")
@@ -1119,6 +1139,7 @@ class TranscriptionGUI(QMainWindow):
             # Button should start DISABLED - will enable after NEW speech
             self.signals.update_speak_button.emit("Speak to Mic", False)
         else:
+            self.logger.log_system_event("TTS to microphone DISABLED")
             # Stop any ongoing TTS playback
             self.tts_controller.stop_speaking()
             # Clear any buffered translations that haven't been spoken
@@ -1158,15 +1179,20 @@ class TranscriptionGUI(QMainWindow):
         if self.tts_to_mic_enabled:
             self.tts_controller.set_language(language)
             print(f"🌍 TTS language changed to: {language}")
+            self.logger.log_system_event(
+                f"TTS target language changed to: {language}"
+            )
     
     def toggle_speak_translation(self):
         """Handle Speak/Stop Speaking button click."""
         if self.tts_controller.is_speaking():
             # Currently speaking - stop it
+            self.logger.log_system_event("TTS playback stopped by user")
             self.tts_controller.stop_speaking()
         else:
             # Not speaking - start if ready
             if self.tts_controller.is_ready():
+                self.logger.log_system_event("TTS playback started")
                 self.tts_controller.speak()
             else:
                 print("⚠️ No translation audio ready to speak")
@@ -1206,6 +1232,14 @@ class TranscriptionGUI(QMainWindow):
         self.speak_btn.setText(text)
         self.speak_btn.setEnabled(enabled)
         print(f"🎛️ Button updated: isEnabled={self.speak_btn.isEnabled()}")
+    
+    def set_api_status(self, message: str):
+        """Update API status label (thread-safe via signal)."""
+        if message:
+            self.api_status_label.setText(f"⏳ {message}")
+            self.api_status_label.setVisible(True)
+        else:
+            self.api_status_label.setVisible(False)
     
     def show_warning(self, message: str):
         """Show warning icon with tooltip (thread-safe)."""
@@ -1282,7 +1316,20 @@ class TranscriptionGUI(QMainWindow):
                     )
                     
                     # Call LLM for translation (this can fail!)
+                    text_preview = text[:50] if len(text) > 50 else text
+                    self.logger.log_system_event(
+                        f"LLM translate: '{text_preview}...' -> {target_lang}"
+                    )
+                    self.signals.set_api_status.emit(
+                        f"Translating to {target_lang}..."
+                    )
                     translation = llm_service.chat(prompt)
+                    self.signals.set_api_status.emit("")
+                    trans_preview = (translation[:50] if len(translation) > 50
+                                     else translation)
+                    self.logger.log_system_event(
+                        f"LLM response: '{trans_preview}...'"
+                    )
                     
                     # Emit signal to update GUI (for text translation)
                     if self.text_translation_enabled:
@@ -1293,7 +1340,20 @@ class TranscriptionGUI(QMainWindow):
                     # Add to TTS buffer if TTS to mic is enabled
                     if self.tts_to_mic_enabled and translation.strip():
                         try:
+                            trans_preview = (translation[:40]
+                                             if len(translation) > 40
+                                             else translation)
+                            self.logger.log_system_event(
+                                f"TTS generation: '{trans_preview}...'"
+                            )
+                            self.signals.set_api_status.emit(
+                                "Generating TTS audio..."
+                            )
                             self.tts_controller.add_translation(translation)
+                            self.signals.set_api_status.emit("")
+                            self.logger.log_system_event(
+                                "TTS audio added to buffer"
+                            )
                         except Exception as tts_error:
                             error_msg = (
                                 f"TTS generation failed:\n{str(tts_error)}"
@@ -1437,6 +1497,7 @@ class TranscriptionGUI(QMainWindow):
             self.signals.update_chat_buttons.emit(True)
         else:
             self.start_stop_btn.setText("▶ Start Transcription")
+            self.logger.log_system_event("Transcription session paused")
             
             # Stop dancing fox animation and show static image
             self.animated_fox.stop()
@@ -1507,6 +1568,8 @@ class TranscriptionGUI(QMainWindow):
     def result_callback(self, text: str, source: str, speaker_id: str = None):
         """Callback for final transcription results."""
         print(f"🔔 result_callback called: source={source}, text={text[:20]}...")
+        # Clear STT status when final result received
+        self.signals.set_api_status.emit("")
         if text and text.strip():
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             current_time = time.time()
@@ -1651,6 +1714,10 @@ class TranscriptionGUI(QMainWindow):
         if text and text.strip():
             # Update last speech time (interim = still speaking!)
             self.last_speech_time = time.time()
+            # Show STT status
+            self.signals.set_api_status.emit(
+                f"Recognizing speech ({source})..."
+            )
             # Emit signal for thread-safe GUI update
             self.signals.append_interim.emit(text, source, speaker_id)
     
@@ -1716,6 +1783,9 @@ class TranscriptionGUI(QMainWindow):
                 
                 # Initialize transcribers
                 if mic_device is not None:
+                    self.logger.log_system_event(
+                        "Starting Azure Speech STT for microphone"
+                    )
                     self.mic_transcriber = AzureSpeechTranscriber(
                         logger=self.logger
                     )
@@ -1725,6 +1795,9 @@ class TranscriptionGUI(QMainWindow):
                             result_callback=self.result_callback,
                             interim_callback=self.interim_callback
                         )
+                    )
+                    self.logger.log_system_event(
+                        "Azure Speech STT for microphone started successfully"
                     )
                     
                     # Start audio stream
@@ -1740,6 +1813,9 @@ class TranscriptionGUI(QMainWindow):
                     self.mic_audio_stream.start_stream()
                 
                 if sys_device is not None:
+                    self.logger.log_system_event(
+                        "Starting Azure Speech STT for system audio"
+                    )
                     self.sys_transcriber = AzureSpeechTranscriber(
                         logger=self.logger
                     )
@@ -1749,6 +1825,9 @@ class TranscriptionGUI(QMainWindow):
                             result_callback=self.result_callback,
                             interim_callback=self.interim_callback
                         )
+                    )
+                    self.logger.log_system_event(
+                        "Azure Speech STT for system audio started"
                     )
                     
                     # Start audio stream

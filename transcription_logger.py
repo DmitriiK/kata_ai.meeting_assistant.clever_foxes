@@ -12,7 +12,11 @@ init(autoreset=True)
 
 
 class TranscriptionLogger:
-    def __init__(self, log_file: str = "transcriptions.log", session_dir: str = None):
+    def __init__(
+        self,
+        log_file: str = "transcriptions.log",
+        session_dir: str = None
+    ):
         """
         Initialize logger.
         
@@ -26,28 +30,51 @@ class TranscriptionLogger:
         # Track interim text per source
         self.last_interim_text = {}
         
+        # Generate timestamp for this application start
+        start_timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        
         # Determine actual log file paths
         if session_dir and os.path.exists(session_dir):
+            # Use session directory (for meeting summaries, etc.)
             self.log_file = os.path.join(session_dir, log_file)
-            self.system_log_file = os.path.join(session_dir, "system_events.log")
+            self.system_log_file = os.path.join(
+                session_dir, "system_events.log"
+            )
         else:
-            self.log_file = log_file
-            self.system_log_file = "system_events.log"
+            # Use logs folder with timestamped filenames
+            logs_dir = "logs"
+            os.makedirs(logs_dir, exist_ok=True)
+            
+            # Extract base name without extension
+            base_name = os.path.splitext(log_file)[0]
+            extension = os.path.splitext(log_file)[1] or ".log"
+            
+            # Create timestamped filenames
+            timestamped_name = f"{base_name}_{start_timestamp}{extension}"
+            self.log_file = os.path.join(logs_dir, timestamped_name)
+            
+            system_name = f"system_events_{start_timestamp}.log"
+            self.system_log_file = os.path.join(logs_dir, system_name)
         
         # Create conversation log file if it doesn't exist
         if not os.path.exists(self.log_file):
             # Ensure directory exists
-            os.makedirs(os.path.dirname(self.log_file), exist_ok=True) if os.path.dirname(self.log_file) else None
+            log_dir = os.path.dirname(self.log_file)
+            if log_dir:
+                os.makedirs(log_dir, exist_ok=True)
             with open(self.log_file, 'w') as f:
                 start_time = datetime.datetime.now()
                 f.write(f"=== Conversation Log Started at {start_time} ===\n")
         
         # Create system events log file if it doesn't exist
         if not os.path.exists(self.system_log_file):
-            os.makedirs(os.path.dirname(self.system_log_file), exist_ok=True) if os.path.dirname(self.system_log_file) else None
+            sys_log_dir = os.path.dirname(self.system_log_file)
+            if sys_log_dir:
+                os.makedirs(sys_log_dir, exist_ok=True)
             with open(self.system_log_file, 'w') as f:
                 start_time = datetime.datetime.now()
-                f.write(f"=== System Events Log Started at {start_time} ===\n")
+                header = f"=== System Events Log Started at {start_time} ===\n"
+                f.write(header)
     
     def update_session_dir(self, session_dir: str):
         """Update the session directory for log file location."""
@@ -173,7 +200,7 @@ class TranscriptionLogger:
             # Show speaker if available
             if speaker_id:
                 speaker_label = (f"{Back.MAGENTA}{Fore.WHITE} "
-                                f"👤 {speaker_id} ")
+                                 f"👤 {speaker_id} ")
                 print(f"{speaker_label}{Style.RESET_ALL}")
             
             speech_label = f"{Back.CYAN}{Fore.BLACK} 💬 SPEECH TEXT: "
