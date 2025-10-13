@@ -51,6 +51,23 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 - **Non-blocking Processing**: Translation and TTS run in separate threads
 - **Dedicated Display**: Translations appear in separate window with timestamps
 
+### 🤖 Private AI Chat
+
+- **Live Transcript Context**: Ask questions about the ongoing meeting in real-time
+- **Quick Question Buttons**: Pre-defined common questions for instant insights
+  - What was last said?
+  - Who spoke last?
+  - Action items mentioned
+  - Main topic discussion
+  - Concerns raised
+  - Next steps planned
+  - Decisions made
+- **Custom Questions**: Type any question about the meeting content
+- **Smart Context Window**: AI analyzes recent conversation history (up to 3000 characters)
+- **Non-blocking Processing**: Questions processed in background thread
+- **Persistent History**: All Q&A saved to `private-chat-history.txt` in session folder
+- **Session History Review**: View chat history from past meetings
+
 **📖 See [Audio Device Setup Guide](AUDIO_DEVICE_SETUP.md) for complete configuration instructions.**
 
 ### 📊 Advanced Meeting Management
@@ -225,6 +242,7 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 | **GUI Application**      | `gui_app.py`                    | Cross-platform GUI with PyQt6        |
 | **Speech Transcriber**   | `azure_speech_service.py`       | Azure Speech Service integration     |
 | **Meeting Assistant**    | `meeting_assistant_service.py`  | AI analysis orchestration            |
+| **Private Chat Service** | `private_chat_service.py`       | Private AI chat with transcript context |
 | **Summary Manager**      | `summary_manager.py`            | Session & file management            |
 | **Transcription Logger** | `transcription_logger.py`       | Enhanced logging with formatting     |
 | **Audio Recorder**       | `audio_recorder.py`             | Multi-device audio handling          |
@@ -328,6 +346,32 @@ The AI Insights tab provides a comprehensive view of meeting intelligence with p
 - **Date Filter**: Calendar picker to filter sessions by date
 - **"All" Button**: Clear filter to show all sessions
 - **Session Stats**: Duration, insight counts, and metadata
+
+#### 🤖 Private AI Chat Section
+
+**Located at the bottom of the Transcription tab**, the Private AI Chat provides instant answers about your meeting.
+
+**How to Use:**
+
+1. **Start Transcription**: The chat interface appears automatically
+2. **Quick Questions**: Click any button for instant answers:
+   - 📝 Last Said - What was just discussed?
+   - 👤 Who Spoke - Who was the last speaker?
+   - 📋 Action Items - What tasks were mentioned?
+   - 🎯 Main Topic - What's the main discussion?
+   - ⚠️ Concerns - What issues were raised?
+   - ➡️ Next Steps - What are the plans?
+   - ✅ Decisions - What was decided?
+3. **Custom Questions**: Type any question in the text box and press Enter or click "Ask"
+4. **View History**: All questions and answers are saved and displayed in the chat window
+5. **Review Later**: Switch to past sessions to see their chat history
+
+**Features:**
+
+- ✅ **Context-Aware**: AI analyzes recent transcript automatically
+- ✅ **Non-Blocking**: UI stays responsive while processing
+- ✅ **Persistent**: History saved to session folder
+- ✅ **Smart**: Understands meeting context and provides relevant answers
 
 ### Demo Mode (`demo.py`)
 
@@ -552,7 +596,8 @@ sessions/
 │   ├── follow-up-questions.txt                  # AI-generated questions
 │   ├── key-points.txt                           # Important topics
 │   ├── action-items.txt                         # Tasks and assignments
-│   └── decisions.txt                            # Recorded decisions
+│   ├── decisions.txt                            # Recorded decisions
+│   └── private-chat-history.txt                 # Private AI chat Q&A history
 ├── session_20251011_150115/
 │   └── ...
 └── session_20251011_160245/
@@ -607,6 +652,32 @@ sessions/
 
 === 2025-10-11 14:28:45 ===
 1. Mike to prepare budget proposal for Q4
+```
+
+**`private-chat-history.txt`**
+
+- Private AI chat question and answer history
+- Timestamped Q&A pairs
+- Includes question type labels
+- Review conversations with the AI assistant
+- Not included in main meeting summary
+
+**Example `private-chat-history.txt`:**
+
+```
+============================================================
+[2025-10-11 14:26:15] [last_said]
+============================================================
+Q: What was the last thing discussed?
+
+A: The team discussed finalizing the project timeline by next Friday.
+
+============================================================
+[2025-10-11 14:27:30] [custom]
+============================================================
+Q: Who is responsible for the budget proposal?
+
+A: Mike is responsible for preparing the budget proposal for Q4.
 ```
 
 ### Benefits of Session-Based Organization
@@ -865,6 +936,7 @@ kata_ai.meeting_assistant.clever_foxes/
 ├── prompts.py                   # AI prompt templates
 ├── azure_speech_service.py      # Azure Speech Service integration
 ├── meeting_assistant_service.py # AI analysis orchestration
+├── private_chat_service.py      # Private AI chat service
 ├── summary_manager.py           # Session and file management
 ├── transcription_logger.py      # Enhanced logging
 ├── audio_recorder.py            # Audio device handling
@@ -877,7 +949,8 @@ kata_ai.meeting_assistant.clever_foxes/
 │   └── test_meeting_assistant.py
 ├── sessions/                    # Generated session folders (gitignored)
 └── static/                      # GUI assets
-    └── fox.png
+    ├── fox.png
+    └── dancing_fox.gif
 ```
 
 ### Running Tests

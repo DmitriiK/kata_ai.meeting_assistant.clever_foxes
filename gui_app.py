@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QLabel, QGroupBox, QCheckBox, QComboBox,
     QMessageBox, QTabWidget, QScrollArea, QFrame, QSplitter, QListWidget,
-    QListWidgetItem, QDateEdit
+    QListWidgetItem, QDateEdit, QLineEdit
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QDate
 from PyQt6.QtGui import QFont, QTextCursor, QColor, QIcon, QMovie, QPixmap
@@ -35,6 +35,7 @@ from queue import Queue, Empty
 from audio_mixer import start_mixer, stop_mixer
 from pathlib import Path
 import json
+from private_chat_service import PrivateChatService
 
 
 class SignalEmitter(QObject):
@@ -50,6 +51,10 @@ class SignalEmitter(QObject):
     append_insight = pyqtSignal(str, str)  # insight_type, content
     update_insights_display = pyqtSignal(dict)  # insights dict
     update_session_list = pyqtSignal()
+    # Private Chat signals
+    append_chat_message = pyqtSignal(str, str, str, str)  # timestamp, type, question, answer
+    update_chat_buttons = pyqtSignal(bool)  # enable/disable
+    show_chat_error = pyqtSignal(str)  # error message
 
 
 class TranscriptionGUI(QMainWindow):
@@ -133,6 +138,11 @@ class TranscriptionGUI(QMainWindow):
         self.date_filter_enabled = False
         self.filtered_date = None
         
+        # Private AI Chat
+        self.chat_service = PrivateChatService()
+        self.chat_queue = Queue()
+        self.chat_worker_running = False
+        
         # Signal emitter for thread-safe updates
         self.signals = SignalEmitter()
         self.signals.append_interim.connect(self.append_interim)
@@ -145,6 +155,9 @@ class TranscriptionGUI(QMainWindow):
         self.signals.append_insight.connect(self.append_insight_to_display)
         self.signals.update_insights_display.connect(self.update_insights_display)
         self.signals.update_session_list.connect(self.refresh_session_list)
+        self.signals.append_chat_message.connect(self.append_chat_message)
+        self.signals.update_chat_buttons.connect(self.update_chat_buttons)
+        self.signals.show_chat_error.connect(self.show_chat_error)
         
         # Setup GUI
         self.setup_ui()
@@ -334,6 +347,9 @@ class TranscriptionGUI(QMainWindow):
         self.translation_group.setLayout(translation_result_layout)
         transcription_layout.addWidget(self.translation_group)
         self.translation_group.hide()  # Hidden by default
+        
+        # ===== PRIVATE AI CHAT SECTION =====
+        self.setup_private_chat_ui(transcription_layout)
         
         # Add transcription tab to tab widget
         self.tab_widget.addTab(transcription_tab, "📝 Transcription")
@@ -548,6 +564,108 @@ class TranscriptionGUI(QMainWindow):
         # Populate session list on startup
         self.refresh_session_list()
     
+    def setup_private_chat_ui(self, transcription_layout):
+        """Setup the private AI chat interface at bottom of transcription tab."""
+        
+        # Main chat group
+        self.chat_group = QGroupBox("🤖 Private AI Chat")
+        chat_layout = QVBoxLayout()
+        
+        # Chat history display
+        self.chat_history_text = QTextEdit()
+        self.chat_history_text.setReadOnly(True)
+        self.chat_history_text.setFont(QFont("Courier", 10))
+        self.chat_history_text.setMaximumHeight(250)
+        self.chat_history_text.setStyleSheet(
+            "background-color: #F5F5F5; color: #000000; padding: 10px;"
+        )
+        self.chat_history_text.setPlaceholderText(
+            "💬 Ask questions about the meeting transcript...\n\n"
+            "Start transcription to enable chat."
+        )
+        chat_layout.addWidget(self.chat_history_text)
+        
+        # Common questions buttons
+        common_q_label = QLabel("Quick Questions:")
+        common_q_label.setStyleSheet("font-weight: bold; margin-top: 5px;")
+        chat_layout.addWidget(common_q_label)
+        
+        # Create button grid (2 rows)
+        button_container = QWidget()
+        button_grid = QVBoxLayout()
+        button_container.setLayout(button_grid)
+        
+        # First row of buttons
+        button_row1 = QHBoxLayout()
+        self.chat_buttons = {}
+        
+        buttons_row1 = [
+            ("last_said", "📝 Last Said"),
+            ("who_spoke", "👤 Who Spoke"),
+            ("action_items", "📋 Action Items"),
+            ("main_topic", "🎯 Main Topic"),
+        ]
+        
+        for btn_id, btn_text in buttons_row1:
+            btn = QPushButton(btn_text)
+            btn.setMinimumHeight(35)
+            btn.clicked.connect(lambda checked, id=btn_id: self.ask_common_question(id))
+            btn.setEnabled(False)  # Disabled until transcription starts
+            self.chat_buttons[btn_id] = btn
+            button_row1.addWidget(btn)
+        
+        button_grid.addLayout(button_row1)
+        
+        # Second row of buttons
+        button_row2 = QHBoxLayout()
+        buttons_row2 = [
+            ("concerns", "⚠️ Concerns"),
+            ("next_steps", "➡️ Next Steps"),
+            ("decisions", "✅ Decisions"),
+        ]
+        
+        for btn_id, btn_text in buttons_row2:
+            btn = QPushButton(btn_text)
+            btn.setMinimumHeight(35)
+            btn.clicked.connect(lambda checked, id=btn_id: self.ask_common_question(id))
+            btn.setEnabled(False)  # Disabled until transcription starts
+            self.chat_buttons[btn_id] = btn
+            button_row2.addWidget(btn)
+        
+        button_grid.addLayout(button_row2)
+        chat_layout.addWidget(button_container)
+        
+        # Custom question input
+        custom_layout = QHBoxLayout()
+        custom_layout.addWidget(QLabel("Custom Question:"))
+        
+        self.chat_input = QLineEdit()
+        self.chat_input.setPlaceholderText("Type your question here...")
+        self.chat_input.setMinimumHeight(30)
+        self.chat_input.returnPressed.connect(self.ask_custom_question)
+        self.chat_input.setEnabled(False)  # Disabled until transcription starts
+        custom_layout.addWidget(self.chat_input)
+        
+        self.chat_ask_btn = QPushButton("Ask")
+        self.chat_ask_btn.setMinimumHeight(30)
+        self.chat_ask_btn.setMinimumWidth(80)
+        self.chat_ask_btn.clicked.connect(self.ask_custom_question)
+        self.chat_ask_btn.setEnabled(False)  # Disabled until transcription starts
+        custom_layout.addWidget(self.chat_ask_btn)
+        
+        self.chat_clear_btn = QPushButton("Clear")
+        self.chat_clear_btn.setMinimumHeight(30)
+        self.chat_clear_btn.setMinimumWidth(80)
+        self.chat_clear_btn.clicked.connect(lambda: self.chat_input.clear())
+        custom_layout.addWidget(self.chat_clear_btn)
+        
+        chat_layout.addLayout(custom_layout)
+        self.chat_group.setLayout(chat_layout)
+        
+        # Add to transcription tab
+        transcription_layout.addWidget(self.chat_group)
+        self.chat_group.hide()  # Hidden until transcription starts
+    
     def switch_to_live_mode(self):
         """Switch to viewing live session insights."""
         self.viewing_live = True
@@ -703,6 +821,12 @@ class TranscriptionGUI(QMainWindow):
             self.decisions_text.setPlaceholderText("No active session.")
             self.action_items_text.setPlaceholderText("No active session.")
             self.questions_text.setPlaceholderText("No active session.")
+            # Clear chat history too
+            self.chat_history_text.clear()
+            self.chat_history_text.setPlaceholderText(
+                "💬 Ask questions about the meeting transcript...\n\n"
+                "Start transcription to enable chat."
+            )
             return
         
         # Display current insights from meeting assistant
@@ -721,6 +845,10 @@ class TranscriptionGUI(QMainWindow):
         if self.meeting_assistant.suggested_questions:
             for i, question in enumerate(self.meeting_assistant.suggested_questions, 1):
                 self.questions_text.append(f"{i}. {question}\n")
+        
+        # Load current session's chat history if it exists
+        if self.session_folder:
+            self.load_session_chat_history(self.session_folder.replace("sessions/", ""))
     
     def clean_insight_content(self, content: str) -> str:
         """Remove timestamp headers from insight content."""
@@ -783,6 +911,9 @@ class TranscriptionGUI(QMainWindow):
                 self.questions_text.setPlainText(content if content else "No follow-up questions recorded for this session.")
         else:
             self.questions_text.setPlainText("No follow-up questions recorded for this session.")
+        
+        # Load private chat history
+        self.load_session_chat_history(session_folder)
     
     def append_insight_to_display(self, insight_type: str, content: str):
         """Append a new insight to the appropriate display (thread-safe)."""
@@ -1284,6 +1415,26 @@ class TranscriptionGUI(QMainWindow):
             self.timer.start(1000)  # Update every second
             if SessionSettings.ENABLE_AUTO_PAUSE:
                 self.auto_pause_timer.start(5000)  # Check every 5 seconds
+            
+            # Show and enable chat UI
+            self.chat_group.show()
+            self.chat_history_text.clear()
+            self.chat_history_text.setPlaceholderText(
+                "💬 Ask questions about the meeting transcript..."
+            )
+            
+            # Start chat worker thread
+            if not self.chat_worker_running:
+                self.chat_worker_running = True
+                chat_thread = threading.Thread(
+                    target=self.chat_worker,
+                    daemon=True
+                )
+                chat_thread.start()
+                print("🔄 Chat worker thread started")
+            
+            # Enable chat buttons
+            self.signals.update_chat_buttons.emit(True)
         else:
             self.start_stop_btn.setText("▶ Start Transcription")
             
@@ -1296,6 +1447,12 @@ class TranscriptionGUI(QMainWindow):
             
             # Stop and clear TTS
             self.tts_controller.stop_speaking()
+            
+            # Stop chat worker thread
+            self.chat_worker_running = False
+            
+            # Disable chat buttons
+            self.signals.update_chat_buttons.emit(False)
             
             # End meeting assistant session and generate summary
             if self.meeting_assistant.session_active:
@@ -1698,10 +1855,211 @@ class TranscriptionGUI(QMainWindow):
             self.signals.update_status.emit(False)
             self.stop_transcription()
     
+    # ===== PRIVATE CHAT METHODS =====
+    
+    def ask_common_question(self, question_type: str):
+        """Handle common question button click."""
+        if not self.is_running:
+            QMessageBox.warning(
+                self, "No Active Session",
+                "Please start transcription before asking questions."
+            )
+            return
+        
+        # Get the question text
+        question_text = self.chat_service.get_question_text(question_type)
+        
+        # Add visual indicator
+        self.chat_history_text.append(
+            f"\n{'=' * 60}\n"
+            f"🤔 Processing: {question_text}\n"
+            f"{'=' * 60}\n"
+        )
+        self.chat_history_text.moveCursor(QTextCursor.MoveOperation.End)
+        
+        # Queue the question
+        self.chat_queue.put((question_type, question_text))
+        
+        # Disable buttons while processing
+        self.signals.update_chat_buttons.emit(False)
+        
+        print(f"💬 Chat question queued: [{question_type}] {question_text}")
+    
+    def ask_custom_question(self):
+        """Handle custom question input."""
+        question = self.chat_input.text().strip()
+        if not question:
+            return
+        
+        if not self.is_running:
+            QMessageBox.warning(
+                self, "No Active Session",
+                "Please start transcription before asking questions."
+            )
+            return
+        
+        # Add visual indicator
+        self.chat_history_text.append(
+            f"\n{'=' * 60}\n"
+            f"🤔 Processing: {question}\n"
+            f"{'=' * 60}\n"
+        )
+        self.chat_history_text.moveCursor(QTextCursor.MoveOperation.End)
+        
+        # Queue the question
+        self.chat_queue.put(("custom", question))
+        
+        # Clear input
+        self.chat_input.clear()
+        
+        # Disable buttons while processing
+        self.signals.update_chat_buttons.emit(False)
+        
+        print(f"💬 Custom chat question queued: {question}")
+    
+    def chat_worker(self):
+        """Background worker for processing chat questions."""
+        print("🔄 Chat worker thread started")
+        
+        while self.chat_worker_running:
+            try:
+                # Get item from queue (blocking with timeout)
+                item = self.chat_queue.get(timeout=1.0)
+                question_type, question_text = item
+                
+                print(f"🤖 Processing chat question: [{question_type}] {question_text[:50]}...")
+                
+                try:
+                    # Get transcript context
+                    context = self.chat_service.get_transcript_context(
+                        self.meeting_assistant.conversation_history
+                    )
+                    
+                    print(f"📋 Context length: {len(context)} chars")
+                    
+                    # Generate prompt
+                    prompt = self.chat_service.generate_prompt(
+                        question_type, question_text, context
+                    )
+                    
+                    # Call LLM
+                    answer = llm_service.chat(prompt, max_tokens=400)
+                    
+                    if answer and not answer.startswith("Error:"):
+                        # Emit signal with result
+                        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        self.signals.append_chat_message.emit(
+                            timestamp, question_type, question_text, answer
+                        )
+                        
+                        # Save to history file
+                        if self.session_folder:
+                            self.chat_service.save_to_history(
+                                question_text, answer, question_type, self.session_folder
+                            )
+                        
+                        print(f"✅ Chat answer generated successfully")
+                    else:
+                        # Error from LLM
+                        error_msg = f"LLM Error: {answer}"
+                        self.signals.show_chat_error.emit(error_msg)
+                        print(f"❌ {error_msg}")
+                
+                except Exception as e:
+                    error_msg = f"Chat processing error: {str(e)}"
+                    self.signals.show_chat_error.emit(error_msg)
+                    print(f"❌ {error_msg}")
+                    import traceback
+                    traceback.print_exc()
+                
+            except Empty:
+                # Queue timeout - this is normal, just continue
+                continue
+            except Exception as e:
+                print(f"❌ Chat worker error: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        print("🛑 Chat worker thread stopped")
+    
+    def append_chat_message(self, timestamp: str, q_type: str, question: str, answer: str):
+        """Append chat message to display (thread-safe)."""
+        # Remove the "Processing..." message by getting current text and removing last entry
+        current_text = self.chat_history_text.toPlainText()
+        if "🤔 Processing:" in current_text:
+            # Find and remove the last processing message
+            lines = current_text.split('\n')
+            filtered_lines = []
+            skip_count = 0
+            for i in range(len(lines) - 1, -1, -1):
+                if skip_count > 0:
+                    skip_count -= 1
+                    continue
+                if "🤔 Processing:" in lines[i]:
+                    skip_count = 2  # Skip this line and the separator lines
+                    continue
+                filtered_lines.insert(0, lines[i])
+            self.chat_history_text.setPlainText('\n'.join(filtered_lines))
+        
+        # Append new message with nice formatting
+        self.chat_history_text.append(
+            f"\n{'=' * 60}\n"
+            f"[{timestamp}] [{q_type}]\n"
+            f"{'=' * 60}\n"
+            f"Q: {question}\n\n"
+            f"A: {answer}\n"
+        )
+        
+        # Auto-scroll to bottom
+        self.chat_history_text.moveCursor(QTextCursor.MoveOperation.End)
+        
+        # Re-enable buttons
+        self.signals.update_chat_buttons.emit(True)
+        
+        print(f"💬 Chat message appended to display")
+    
+    def update_chat_buttons(self, enabled: bool):
+        """Enable/disable chat buttons (thread-safe)."""
+        # Update all common question buttons
+        for btn in self.chat_buttons.values():
+            btn.setEnabled(enabled)
+        
+        # Update custom question controls
+        self.chat_input.setEnabled(enabled)
+        self.chat_ask_btn.setEnabled(enabled)
+    
+    def show_chat_error(self, error_msg: str):
+        """Show chat error in the display (thread-safe)."""
+        self.chat_history_text.append(
+            f"\n⚠️ Error: {error_msg}\n"
+        )
+        self.chat_history_text.moveCursor(QTextCursor.MoveOperation.End)
+        
+        # Re-enable buttons
+        self.signals.update_chat_buttons.emit(True)
+    
+    def load_session_chat_history(self, session_folder: str):
+        """Load private chat history for a session."""
+        session_path = Path("sessions") / session_folder
+        
+        # Load chat history using service
+        chat_content = self.chat_service.load_history(str(session_path))
+        
+        if chat_content:
+            self.chat_history_text.setPlainText(chat_content)
+        else:
+            self.chat_history_text.clear()
+            self.chat_history_text.setPlaceholderText(
+                "No chat history for this session."
+            )
+    
     def closeEvent(self, event):
         """Handle window closing."""
         if self.is_running:
             self.stop_transcription()
+        
+        # Stop chat worker
+        self.chat_worker_running = False
         
         # Cleanup TTS controller
         self.tts_controller.cleanup()
