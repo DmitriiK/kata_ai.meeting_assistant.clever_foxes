@@ -322,7 +322,7 @@ class TranscriptionGUI(QMainWindow):
         interim_layout.addWidget(self.interim_text)
         
         interim_group.setLayout(interim_layout)
-        transcription_layout.addWidget(interim_group)
+        transcription_layout.addWidget(interim_group, 0)  # No stretch
         
         # Final Results Group
         final_group = QGroupBox(
@@ -333,13 +333,16 @@ class TranscriptionGUI(QMainWindow):
         self.final_text = QTextEdit()
         self.final_text.setReadOnly(True)
         self.final_text.setFont(QFont("Courier", 10))
+        # Minimum height for main content area
+        self.final_text.setMinimumHeight(300)
         self.final_text.setStyleSheet(
             "background-color: #E0FFE0; color: #000000;"
         )
         final_layout.addWidget(self.final_text)
         
         final_group.setLayout(final_layout)
-        transcription_layout.addWidget(final_group)
+        # Stretch factor 1 to expand and fill remaining space
+        transcription_layout.addWidget(final_group, 1)
         
         # Translation Results Group
         self.translation_group = QGroupBox("🌍 Translation Results")
@@ -348,13 +351,14 @@ class TranscriptionGUI(QMainWindow):
         self.translation_text = QTextEdit()
         self.translation_text.setReadOnly(True)
         self.translation_text.setFont(QFont("Courier", 10))
+        self.translation_text.setMaximumHeight(80)  # 2 rows height
         self.translation_text.setStyleSheet(
             "background-color: #E0F0FF; color: #000000;"
         )
         translation_result_layout.addWidget(self.translation_text)
         
         self.translation_group.setLayout(translation_result_layout)
-        transcription_layout.addWidget(self.translation_group)
+        transcription_layout.addWidget(self.translation_group, 0)  # No stretch
         self.translation_group.hide()  # Hidden by default
         
         # ===== PRIVATE AI CHAT SECTION =====
@@ -585,7 +589,7 @@ class TranscriptionGUI(QMainWindow):
         self.chat_history_text = QTextEdit()
         self.chat_history_text.setReadOnly(True)
         self.chat_history_text.setFont(QFont("Courier", 10))
-        self.chat_history_text.setMaximumHeight(250)
+        self.chat_history_text.setMaximumHeight(80)  # 2 rows height
         self.chat_history_text.setStyleSheet(
             "background-color: #F5F5F5; color: #000000; padding: 10px;"
         )
@@ -673,7 +677,7 @@ class TranscriptionGUI(QMainWindow):
         self.chat_group.setLayout(chat_layout)
         
         # Add to transcription tab
-        transcription_layout.addWidget(self.chat_group)
+        transcription_layout.addWidget(self.chat_group, 0)  # No stretch
         self.chat_group.hide()  # Hidden until transcription starts
     
     def switch_to_live_mode(self):
