@@ -18,19 +18,23 @@ import pyaudio
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QLabel, QGroupBox, QCheckBox, QComboBox,
-    QMessageBox
+    QMessageBox, QTabWidget, QScrollArea, QFrame, QSplitter, QListWidget,
+    QListWidgetItem, QDateEdit
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QDate
 from PyQt6.QtGui import QFont, QTextCursor, QColor, QIcon, QMovie, QPixmap
 from azure_speech_service import AzureSpeechTranscriber
 from transcription_logger import TranscriptionLogger
 from config import AudioSettings, LogSettings, SessionSettings
 from audio_recorder import AudioRecorder
 from translation_tts_controller import TranslationTTSController
+from meeting_assistant_service import MeetingAssistantService
 import llm_service
 import prompts
 from queue import Queue, Empty
 from audio_mixer import start_mixer, stop_mixer
+from pathlib import Path
+import json
 
 
 class SignalEmitter(QObject):
@@ -42,6 +46,10 @@ class SignalEmitter(QObject):
     update_speak_button = pyqtSignal(str, bool)  # text, enabled
     show_warning = pyqtSignal(str)  # error message
     clear_warning = pyqtSignal()
+    # AI Insights signals
+    append_insight = pyqtSignal(str, str)  # insight_type, content
+    update_insights_display = pyqtSignal(dict)  # insights dict
+    update_session_list = pyqtSignal()
 
 
 class TranscriptionGUI(QMainWindow):
@@ -113,6 +121,18 @@ class TranscriptionGUI(QMainWindow):
         # Logger
         self.logger = TranscriptionLogger(log_file=LogSettings.LOG_FILE)
         
+        # Meeting Assistant Service for AI insights
+        self.meeting_assistant = MeetingAssistantService()
+        self.session_started = False
+        
+        # Insights viewing mode
+        self.viewing_live = True
+        self.current_viewed_session = None
+        
+        # Date filter state
+        self.date_filter_enabled = False
+        self.filtered_date = None
+        
         # Signal emitter for thread-safe updates
         self.signals = SignalEmitter()
         self.signals.append_interim.connect(self.append_interim)
@@ -122,6 +142,9 @@ class TranscriptionGUI(QMainWindow):
         self.signals.update_speak_button.connect(self.update_speak_button)
         self.signals.show_warning.connect(self.show_warning)
         self.signals.clear_warning.connect(self.clear_warning)
+        self.signals.append_insight.connect(self.append_insight_to_display)
+        self.signals.update_insights_display.connect(self.update_insights_display)
+        self.signals.update_session_list.connect(self.refresh_session_list)
         
         # Setup GUI
         self.setup_ui()
@@ -129,7 +152,7 @@ class TranscriptionGUI(QMainWindow):
     def setup_ui(self):
         """Setup the user interface."""
         self.setWindowTitle("🎤 Meeting Transcription Assistant")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1400, 900)
         
         # Central widget
         central_widget = QWidget()
@@ -253,6 +276,15 @@ class TranscriptionGUI(QMainWindow):
         
         main_layout.addLayout(features_layout)
         
+        # Create tab widget for main content
+        self.tab_widget = QTabWidget()
+        main_layout.addWidget(self.tab_widget)
+        
+        # ===== TAB 1: TRANSCRIPTION =====
+        transcription_tab = QWidget()
+        transcription_layout = QVBoxLayout()
+        transcription_tab.setLayout(transcription_layout)
+        
         # Interim Results Group (single line)
         interim_group = QGroupBox("⚡ Interim Results (Live Transcription)")
         interim_layout = QVBoxLayout()
@@ -268,7 +300,7 @@ class TranscriptionGUI(QMainWindow):
         interim_layout.addWidget(self.interim_text)
         
         interim_group.setLayout(interim_layout)
-        main_layout.addWidget(interim_group)
+        transcription_layout.addWidget(interim_group)
         
         # Final Results Group
         final_group = QGroupBox(
@@ -285,7 +317,7 @@ class TranscriptionGUI(QMainWindow):
         final_layout.addWidget(self.final_text)
         
         final_group.setLayout(final_layout)
-        main_layout.addWidget(final_group)
+        transcription_layout.addWidget(final_group)
         
         # Translation Results Group
         self.translation_group = QGroupBox("🌍 Translation Results")
@@ -300,8 +332,17 @@ class TranscriptionGUI(QMainWindow):
         translation_result_layout.addWidget(self.translation_text)
         
         self.translation_group.setLayout(translation_result_layout)
-        main_layout.addWidget(self.translation_group)
+        transcription_layout.addWidget(self.translation_group)
         self.translation_group.hide()  # Hidden by default
+        
+        # Add transcription tab to tab widget
+        self.tab_widget.addTab(transcription_tab, "📝 Transcription")
+        
+        # ===== TAB 2: AI INSIGHTS =====
+        self.setup_insights_tab()
+        
+        # Connect tab change event to auto-refresh sessions
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
         
         # Footer layout with warning indicator and timer
         footer_layout = QHBoxLayout()
@@ -318,6 +359,476 @@ class TranscriptionGUI(QMainWindow):
             QApplication.instance().setWindowIcon(icon)
         except Exception as e:
             print(f"Could not load icon: {e}")
+    
+    def on_tab_changed(self, index):
+        """Handle tab change - refresh session list when switching to AI Insights tab."""
+        # Tab 1 is AI Insights (0 = Transcription, 1 = AI Insights)
+        if index == 1:  # AI Insights tab
+            self.refresh_session_list()
+    
+    def setup_insights_tab(self):
+        """Setup the AI Insights tab with session browser and insights sections."""
+        insights_tab = QWidget()
+        insights_main_layout = QHBoxLayout()  # Changed to horizontal for side-by-side
+        insights_tab.setLayout(insights_main_layout)
+        
+        # ===== LEFT PANEL: Session Browser =====
+        left_panel = QWidget()
+        left_panel_layout = QVBoxLayout()
+        left_panel.setLayout(left_panel_layout)
+        left_panel.setMaximumWidth(350)
+        
+        # Live session button (always at top)
+        self.live_mode_btn = QPushButton("🔴 LIVE Session")
+        self.live_mode_btn.setCheckable(True)
+        self.live_mode_btn.setChecked(True)
+        self.live_mode_btn.clicked.connect(self.switch_to_live_mode)
+        self.live_mode_btn.setMinimumHeight(50)
+        self.live_mode_btn.setStyleSheet(
+            """
+            QPushButton {
+                font-size: 14pt;
+                font-weight: bold;
+                border: 2px solid #4CAF50;
+                border-radius: 5px;
+                padding: 10px;
+            }
+            QPushButton:checked {
+                background-color: #4CAF50;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+                color: white;
+            }
+            """
+        )
+        left_panel_layout.addWidget(self.live_mode_btn)
+        
+        # Session list header
+        session_list_label = QLabel("📁 Past Sessions")
+        session_list_label.setStyleSheet("font-size: 12pt; font-weight: bold; margin-top: 10px;")
+        left_panel_layout.addWidget(session_list_label)
+        
+        # Date filter controls
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Filter by date:"))
+        
+        self.date_filter = QDateEdit()
+        self.date_filter.setCalendarPopup(True)
+        self.date_filter.setDate(QDate.currentDate())
+        self.date_filter.setDisplayFormat("yyyy-MM-dd")
+        self.date_filter.setStyleSheet("padding: 3px;")
+        self.date_filter.dateChanged.connect(self.apply_date_filter)
+        filter_layout.addWidget(self.date_filter)
+        
+        # Clear filter button
+        clear_filter_btn = QPushButton("All")
+        clear_filter_btn.setMaximumWidth(50)
+        clear_filter_btn.clicked.connect(self.clear_date_filter)
+        clear_filter_btn.setToolTip("Show all sessions")
+        filter_layout.addWidget(clear_filter_btn)
+        
+        left_panel_layout.addLayout(filter_layout)
+        
+        # Filter status label
+        self.filter_status_label = QLabel("")
+        self.filter_status_label.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        left_panel_layout.addWidget(self.filter_status_label)
+        
+        # Session list widget
+        self.session_list = QListWidget()
+        self.session_list.setStyleSheet(
+            """
+            QListWidget {
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                background-color: white;
+                font-size: 10pt;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #e0e0e0;
+                color: #333333;
+            }
+            QListWidget::item:selected {
+                background-color: #1976D2;
+                color: white;
+                font-weight: bold;
+            }
+            QListWidget::item:hover {
+                background-color: #e3f2fd;
+                color: #000000;
+            }
+            """
+        )
+        self.session_list.itemClicked.connect(self.on_session_clicked)
+        self.session_list.setMinimumHeight(300)
+        left_panel_layout.addWidget(self.session_list)
+        
+        # Session info/stats at bottom
+        self.session_stats_label = QLabel("Select a session to view insights")
+        self.session_stats_label.setStyleSheet(
+            "padding: 10px; background-color: #f0f0f0; color: #333333; border-radius: 5px; font-size: 9pt;"
+        )
+        self.session_stats_label.setWordWrap(True)
+        left_panel_layout.addWidget(self.session_stats_label)
+        
+        insights_main_layout.addWidget(left_panel)
+        
+        # ===== RIGHT PANEL: Insights Display =====
+        right_panel = QWidget()
+        right_panel_layout = QVBoxLayout()
+        right_panel.setLayout(right_panel_layout)
+        # Create a splitter for resizable sections
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Key Points Section
+        key_points_group = QGroupBox("🔑 Key Points")
+        key_points_layout = QVBoxLayout()
+        self.key_points_text = QTextEdit()
+        self.key_points_text.setReadOnly(True)
+        self.key_points_text.setFont(QFont("Arial", 11))
+        self.key_points_text.setStyleSheet(
+            "background-color: #E8F5E9; color: #1B5E20; padding: 10px; font-weight: 500;"
+        )
+        self.key_points_text.setPlaceholderText("Key points will appear here as the AI identifies them...")
+        key_points_layout.addWidget(self.key_points_text)
+        key_points_group.setLayout(key_points_layout)
+        splitter.addWidget(key_points_group)
+        
+        # Decisions Section
+        decisions_group = QGroupBox("✅ Decisions")
+        decisions_layout = QVBoxLayout()
+        self.decisions_text = QTextEdit()
+        self.decisions_text.setReadOnly(True)
+        self.decisions_text.setFont(QFont("Arial", 11))
+        self.decisions_text.setStyleSheet(
+            "background-color: #FFF3E0; color: #BF360C; padding: 10px; font-weight: 500;"
+        )
+        self.decisions_text.setPlaceholderText("Decisions made during the meeting will appear here...")
+        decisions_layout.addWidget(self.decisions_text)
+        decisions_group.setLayout(decisions_layout)
+        splitter.addWidget(decisions_group)
+        
+        # Action Items Section
+        action_items_group = QGroupBox("📋 Action Items")
+        action_items_layout = QVBoxLayout()
+        self.action_items_text = QTextEdit()
+        self.action_items_text.setReadOnly(True)
+        self.action_items_text.setFont(QFont("Arial", 11))
+        self.action_items_text.setStyleSheet(
+            "background-color: #E3F2FD; color: #01579B; padding: 10px; font-weight: 500;"
+        )
+        self.action_items_text.setPlaceholderText("Action items and tasks will appear here...")
+        action_items_layout.addWidget(self.action_items_text)
+        action_items_group.setLayout(action_items_layout)
+        splitter.addWidget(action_items_group)
+        
+        # Follow-up Questions Section
+        questions_group = QGroupBox("❓ Follow-up Questions")
+        questions_layout = QVBoxLayout()
+        self.questions_text = QTextEdit()
+        self.questions_text.setReadOnly(True)
+        self.questions_text.setFont(QFont("Arial", 11))
+        self.questions_text.setStyleSheet(
+            "background-color: #F3E5F5; color: #4A148C; padding: 10px; font-weight: 500;"
+        )
+        self.questions_text.setPlaceholderText("AI-suggested follow-up questions will appear here...")
+        questions_layout.addWidget(self.questions_text)
+        questions_group.setLayout(questions_layout)
+        splitter.addWidget(questions_group)
+        
+        right_panel_layout.addWidget(splitter)
+        insights_main_layout.addWidget(right_panel)
+        
+        # Add insights tab to tab widget
+        self.tab_widget.addTab(insights_tab, "🤖 AI Insights")
+        
+        # Populate session list on startup
+        self.refresh_session_list()
+    
+    def switch_to_live_mode(self):
+        """Switch to viewing live session insights."""
+        self.viewing_live = True
+        self.live_mode_btn.setChecked(True)
+        # Clear list selection
+        self.session_list.clearSelection()
+        self.session_stats_label.setText("📊 Viewing LIVE session")
+        self.load_live_insights()
+    
+    def on_session_clicked(self, item):
+        """Handle session list item click."""
+        # Get session folder from item data
+        session_folder = item.data(Qt.ItemDataRole.UserRole)
+        
+        if not session_folder:
+            return
+        
+        # Switch to browsing mode
+        self.viewing_live = False
+        self.live_mode_btn.setChecked(False)
+        self.current_viewed_session = session_folder
+        
+        # Load insights from session folder
+        self.load_session_insights(session_folder)
+        
+        # Update stats label
+        self.update_session_stats(session_folder)
+    
+    def apply_date_filter(self):
+        """Apply date filter to session list."""
+        self.date_filter_enabled = True
+        self.filtered_date = self.date_filter.date().toPyDate()
+        self.refresh_session_list()
+        
+        # Update filter status
+        date_str = self.filtered_date.strftime("%Y-%m-%d")
+        self.filter_status_label.setText(f"Showing sessions from {date_str}")
+    
+    def clear_date_filter(self):
+        """Clear date filter and show all sessions."""
+        self.date_filter_enabled = False
+        self.filtered_date = None
+        self.filter_status_label.setText("")
+        self.refresh_session_list()
+    
+    def refresh_session_list(self):
+        """Refresh the list of available sessions."""
+        self.session_list.clear()
+        
+        sessions_dir = Path("sessions")
+        if not sessions_dir.exists():
+            item = QListWidgetItem("No sessions directory found")
+            item.setForeground(QColor("#666666"))
+            self.session_list.addItem(item)
+            return
+        
+        # Get all session folders
+        session_folders = [d for d in sessions_dir.iterdir() if d.is_dir() and d.name.startswith("session_")]
+        
+        if not session_folders:
+            item = QListWidgetItem("No past sessions yet\nStart a transcription to create one!")
+            item.setForeground(QColor("#666666"))
+            self.session_list.addItem(item)
+            return
+        
+        # Sort by modification time (most recent first)
+        session_folders.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+        
+        # Add to list
+        items_added = 0
+        for session_folder in session_folders:
+            folder_name = session_folder.name
+            if len(folder_name) == 23:  # session_YYYYMMDD_HHMMSS = 23 chars
+                timestamp_str = folder_name[8:]  # Remove "session_"
+                try:
+                    # Parse timestamp
+                    dt = datetime.datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+                    
+                    # Apply date filter if enabled
+                    if self.date_filter_enabled and self.filtered_date:
+                        session_date = dt.date()
+                        if session_date != self.filtered_date:
+                            continue  # Skip this session
+                    
+                    # Format display with date and time on one line - simplified for better readability
+                    display_name = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # Create list item
+                    item = QListWidgetItem(display_name)
+                    item.setData(Qt.ItemDataRole.UserRole, folder_name)  # Store folder name
+                    item.setToolTip(f"Session: {folder_name}\nClick to view insights")
+                    
+                    self.session_list.addItem(item)
+                    items_added += 1
+                except Exception as e:
+                    # If parsing fails, just use folder name
+                    print(f"⚠️ Error parsing session {folder_name}: {e}")
+                    item = QListWidgetItem(folder_name)
+                    item.setData(Qt.ItemDataRole.UserRole, folder_name)
+                    self.session_list.addItem(item)
+                    items_added += 1
+        
+        if items_added == 0 and self.date_filter_enabled:
+            item = QListWidgetItem(f"No sessions found for {self.filtered_date.strftime('%Y-%m-%d')}")
+            item.setForeground(QColor("#666666"))
+            self.session_list.addItem(item)
+        
+        print(f"✅ Loaded {items_added} past sessions")
+    
+    def update_session_stats(self, session_folder):
+        """Update the session stats label with information about the selected session."""
+        session_path = Path("sessions") / session_folder
+        
+        if not session_path.exists():
+            self.session_stats_label.setText("Session not found")
+            return
+        
+        # Try to load summary JSON for stats
+        timestamp_str = session_folder[8:]  # Remove "session_"
+        summary_file = session_path / f"meeting_summary_{timestamp_str}.json"
+        
+        if summary_file.exists():
+            try:
+                with open(summary_file, 'r', encoding='utf-8') as f:
+                    summary = json.load(f)
+                
+                stats = summary.get('statistics', {})
+                duration = summary.get('duration_minutes', 0)
+                
+                stats_text = f"""📊 <b>{session_folder}</b><br>
+⏱️ Duration: {duration} minutes<br>
+🔑 Key Points: {stats.get('key_points_identified', 0)}<br>
+✅ Decisions: {stats.get('decisions_recorded', 0)}<br>
+📋 Action Items: {stats.get('action_items_captured', 0)}<br>
+❓ Questions: {stats.get('questions_generated', 0)}"""
+                
+                self.session_stats_label.setText(stats_text)
+            except Exception as e:
+                self.session_stats_label.setText(f"Viewing: {session_folder}")
+        else:
+            self.session_stats_label.setText(f"Viewing: {session_folder}\n(No summary available)")
+    
+    def load_live_insights(self):
+        """Load insights from current live session."""
+        # Clear all displays
+        self.key_points_text.clear()
+        self.decisions_text.clear()
+        self.action_items_text.clear()
+        self.questions_text.clear()
+        
+        if not self.meeting_assistant.session_active:
+            self.key_points_text.setPlaceholderText("No active session. Start transcription to begin.")
+            self.decisions_text.setPlaceholderText("No active session.")
+            self.action_items_text.setPlaceholderText("No active session.")
+            self.questions_text.setPlaceholderText("No active session.")
+            return
+        
+        # Display current insights from meeting assistant
+        if self.meeting_assistant.key_points:
+            for point in self.meeting_assistant.key_points:
+                self.key_points_text.append(f"• {point}\n")
+        
+        if self.meeting_assistant.decisions:
+            for decision in self.meeting_assistant.decisions:
+                self.decisions_text.append(f"• {decision}\n")
+        
+        if self.meeting_assistant.action_items:
+            for item in self.meeting_assistant.action_items:
+                self.action_items_text.append(f"• {item}\n")
+        
+        if self.meeting_assistant.suggested_questions:
+            for i, question in enumerate(self.meeting_assistant.suggested_questions, 1):
+                self.questions_text.append(f"{i}. {question}\n")
+    
+    def clean_insight_content(self, content: str) -> str:
+        """Remove timestamp headers from insight content."""
+        lines = content.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            # Skip timestamp headers like "=== 2025-10-13 07:10:18 ==="
+            if line.strip().startswith('===') and line.strip().endswith('==='):
+                continue
+            cleaned_lines.append(line)
+        
+        return '\n'.join(cleaned_lines).strip()
+    
+    def load_session_insights(self, session_folder):
+        """Load insights from a past session folder."""
+        session_path = Path("sessions") / session_folder
+        
+        if not session_path.exists():
+            return
+        
+        # Clear all displays
+        self.key_points_text.clear()
+        self.decisions_text.clear()
+        self.action_items_text.clear()
+        self.questions_text.clear()
+        
+        # Load key points
+        key_points_file = session_path / "key-points.txt"
+        if key_points_file.exists():
+            with open(key_points_file, 'r', encoding='utf-8') as f:
+                content = self.clean_insight_content(f.read())
+                self.key_points_text.setPlainText(content if content else "No key points recorded for this session.")
+        else:
+            self.key_points_text.setPlainText("No key points recorded for this session.")
+        
+        # Load decisions
+        decisions_file = session_path / "decisions.txt"
+        if decisions_file.exists():
+            with open(decisions_file, 'r', encoding='utf-8') as f:
+                content = self.clean_insight_content(f.read())
+                self.decisions_text.setPlainText(content if content else "No decisions recorded for this session.")
+        else:
+            self.decisions_text.setPlainText("No decisions recorded for this session.")
+        
+        # Load action items
+        action_items_file = session_path / "action-items.txt"
+        if action_items_file.exists():
+            with open(action_items_file, 'r', encoding='utf-8') as f:
+                content = self.clean_insight_content(f.read())
+                self.action_items_text.setPlainText(content if content else "No action items recorded for this session.")
+        else:
+            self.action_items_text.setPlainText("No action items recorded for this session.")
+        
+        # Load follow-up questions
+        questions_file = session_path / "follow-up-questions.txt"
+        if questions_file.exists():
+            with open(questions_file, 'r', encoding='utf-8') as f:
+                content = self.clean_insight_content(f.read())
+                self.questions_text.setPlainText(content if content else "No follow-up questions recorded for this session.")
+        else:
+            self.questions_text.setPlainText("No follow-up questions recorded for this session.")
+    
+    def append_insight_to_display(self, insight_type: str, content: str):
+        """Append a new insight to the appropriate display (thread-safe)."""
+        if not self.viewing_live:
+            return  # Only update when viewing live
+        
+        if insight_type == "key_point":
+            self.key_points_text.append(f"• {content}\n")
+            self.key_points_text.moveCursor(QTextCursor.MoveOperation.End)
+        elif insight_type == "decision":
+            self.decisions_text.append(f"• {content}\n")
+            self.decisions_text.moveCursor(QTextCursor.MoveOperation.End)
+        elif insight_type == "action_item":
+            self.action_items_text.append(f"• {content}\n")
+            self.action_items_text.moveCursor(QTextCursor.MoveOperation.End)
+        elif insight_type == "question":
+            # Count existing questions
+            existing_text = self.questions_text.toPlainText()
+            question_count = existing_text.count('\n') + (1 if existing_text.strip() else 0)
+            self.questions_text.append(f"{question_count}. {content}\n")
+            self.questions_text.moveCursor(QTextCursor.MoveOperation.End)
+    
+    def update_insights_display(self, insights: dict):
+        """Update insights display with a batch of new insights (thread-safe)."""
+        if not self.viewing_live:
+            return  # Only update when viewing live
+        
+        # Add new key points
+        if "key_points" in insights:
+            for point in insights["key_points"]:
+                self.signals.append_insight.emit("key_point", point)
+        
+        # Add new decisions
+        if "decisions" in insights:
+            for decision in insights["decisions"]:
+                self.signals.append_insight.emit("decision", decision)
+        
+        # Add new action items
+        if "action_items" in insights:
+            for item in insights["action_items"]:
+                self.signals.append_insight.emit("action_item", item)
+        
+        # Add new questions
+        if "questions" in insights:
+            for question in insights["questions"]:
+                self.signals.append_insight.emit("question", question)
     
     def append_interim(self, text: str, source: str, speaker_id: str):
         """Append text to interim results window."""
@@ -751,6 +1262,22 @@ class TranscriptionGUI(QMainWindow):
             self.session_folder = f"sessions/session_{timestamp}"
             os.makedirs(self.session_folder, exist_ok=True)
             
+            # Start meeting assistant session
+            if not self.meeting_assistant.session_active:
+                self.meeting_assistant.start_session()
+                print("🤖 Meeting Assistant session started")
+            
+            # Clear insights display for new session
+            if self.viewing_live:
+                self.key_points_text.clear()
+                self.decisions_text.clear()
+                self.action_items_text.clear()
+                self.questions_text.clear()
+                self.key_points_text.setPlaceholderText("Key points will appear here as the AI identifies them...")
+                self.decisions_text.setPlaceholderText("Decisions made during the meeting will appear here...")
+                self.action_items_text.setPlaceholderText("Action items and tasks will appear here...")
+                self.questions_text.setPlaceholderText("AI-suggested follow-up questions will appear here...")
+            
             # Start timers
             self.session_start_time = time.time()
             self.last_speech_time = time.time()
@@ -769,6 +1296,17 @@ class TranscriptionGUI(QMainWindow):
             
             # Stop and clear TTS
             self.tts_controller.stop_speaking()
+            
+            # End meeting assistant session and generate summary
+            if self.meeting_assistant.session_active:
+                print("\n📋 Ending meeting session and generating summary...")
+                summary_file = self.meeting_assistant.end_session()
+                if summary_file:
+                    print(f"✅ Meeting summary saved to: {summary_file}")
+                self.session_started = False
+                
+                # Refresh session list to show new session
+                self.signals.update_session_list.emit()
             
             # Stop timers
             self.timer.stop()
@@ -815,6 +1353,12 @@ class TranscriptionGUI(QMainWindow):
         if text and text.strip():
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             current_time = time.time()
+            
+            # Update logger session directory if not already done
+            if not self.session_started and self.meeting_assistant.session_active:
+                session_dir = str(self.meeting_assistant.summary_manager.session_output_dir)
+                self.logger.update_session_dir(session_dir)
+                self.session_started = True
             
             # FIRST: Bidirectional duplicate detection
             # Normalize text for comparison
@@ -928,6 +1472,20 @@ class TranscriptionGUI(QMainWindow):
             
             # Also log to file (translations are NOT logged)
             self.logger.log_transcription(text, source, speaker_id)
+            
+            # Process with AI meeting assistant for insights
+            if source != "TTS":  # Don't analyze TTS translations
+                insights = self.meeting_assistant.add_transcription(text, source, timestamp)
+                
+                # Display AI insights if any were generated
+                if insights:
+                    print(f"✨ AI Insights generated: {list(insights.keys())}")
+                    
+                    # Save insights to files (this creates the txt files)
+                    self.meeting_assistant.display_insights(insights)
+                    
+                    # Emit signal to update GUI display
+                    self.signals.update_insights_display.emit(insights)
     
     def interim_callback(
         self, text: str, source: str, speaker_id: str = None
