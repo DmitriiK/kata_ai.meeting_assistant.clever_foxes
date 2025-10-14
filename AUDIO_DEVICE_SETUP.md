@@ -384,7 +384,14 @@ python -c "import pyaudio; p = pyaudio.PyAudio(); [print(f'{i}: {p.get_device_in
 
 Install commercial audio routing software that can capture individual app audio:
 
-**Loopback by Rogue Amoeba** ($99) - **BEST SOLUTION**
+**Audio Hijack by Rogue Amoeba** ($64) - **RECOMMENDED FOR TEAMS** ⭐
+- https://rogueamoeba.com/audiohijack/
+- Mix your real microphone with TTS audio and route to Teams
+- More reliable than BlackHole for Teams integration
+- 10-minute free trial (unlimited restarts for testing)
+- **See detailed setup guide below** ↓
+
+**Loopback by Rogue Amoeba** ($99) - Professional Solution
 - https://rogueamoeba.com/loopback/
 - Create virtual audio source from specific apps
 - Route Teams/Zoom → Virtual Device → Meeting Assistant
@@ -395,11 +402,6 @@ Install commercial audio routing software that can capture individual app audio:
   3. Add Teams/Zoom as audio source
   4. Route to BlackHole or new virtual output
   5. Set Meeting Assistant to capture this device
-
-**Audio Hijack** ($64) - Alternative
-- https://rogueamoeba.com/audiohijack/
-- Record specific application audio
-- More complex but powerful
 
 **SoundSource** ($39) - Simpler option
 - https://rogueamoeba.com/soundsource/
@@ -487,6 +489,168 @@ To verify if meeting app audio is being captured:
 ---
 
 ## Advanced Configurations
+
+### Audio Hijack Setup for Teams + TTS (Recommended Alternative)
+
+**Audio Hijack** provides a more reliable way to mix your microphone with TTS audio and route it to Teams, especially useful when BlackHole setup encounters issues with desktop meeting apps.
+
+#### Overview
+
+Audio Hijack will mix your real microphone with TTS audio from the Meeting Assistant and route it to Teams.
+
+#### Step 1: Download and Install
+
+1. **Download Audio Hijack**: https://rogueamoeba.com/audiohijack/
+2. **Install** the application
+3. **Open Audio Hijack**
+4. **Install the ACE (Audio Capture Engine)** when prompted (required for app audio capture)
+5. **⚠️ Restart your Mac** after ACE installation
+
+#### Step 2: Create Audio Hijack Session
+
+**Audio Flow:**
+```
+[Microphone Input] ──┐
+                     ├──> [Mixer] ──> [Output Device] ──> Teams
+[Application Audio] ──┘
+```
+
+**Detailed Steps:**
+
+**A. Add Your Microphone**
+1. **Click "New Session"** → Choose **"New Blank Session"**
+2. **Click the "+" button** in the session
+3. Select **"Input Device"**
+4. Choose **your microphone** (e.g., "Jabra EVOLVE 20 MS")
+5. Name it: "My Mic"
+
+**B. Add Application Audio (for TTS)**
+1. **Click "+"** again
+2. Select **"Application"**
+3. In the application list, find **Python** or the process running your GUI app
+   - You might see: `Python`, `gui_app.py`, or similar
+   - If you can't find it, select **"System Audio"** instead (captures all apps)
+4. Name it: "TTS Audio"
+
+**C. Add Mixer**
+1. **Click "+"**
+2. Select **"Mixer"**
+3. This will automatically connect your previous sources
+4. **Adjust levels**:
+   - **Microphone**: 100% (full volume)
+   - **TTS Audio**: 100% (full volume)
+
+**D. Add Output**
+1. **Click "+"**
+2. Select **"Output Device"**
+3. Choose **"ACE Loopback"** (Audio Hijack's built-in virtual device)
+   - More reliable than BlackHole for this purpose
+   - Alternative: Use **"BlackHole 2ch"** if you have it installed
+
+**E. Optional: Add Monitor Output**
+
+If you want to hear the mixed audio yourself:
+1. **Click on the Output Device** block
+2. Click **"+"**
+3. Select **"Output Device"**
+4. Choose your **headphones/speakers**
+
+**Session Should Look Like:**
+```
+┌─────────────────┐
+│   Jabra Mic     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌─────────────────┐
+│   Python App    │────▶│     Mixer       │
+└─────────────────┘     └────────┬────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │ ACE Loopback    │
+                        │   (Output)      │
+                        └─────────────────┘
+```
+
+#### Step 3: Configure the Session
+
+1. **Name your session**: "Teams with TTS"
+2. **Check the audio path** - make sure all blocks are connected
+3. Click **"Start Hijacking"** button (bottom right)
+
+#### Step 4: Configure Teams
+
+1. **Open Microsoft Teams**
+2. Go to **Settings** → **Devices**
+3. **Microphone**: Select **"ACE Loopback"** (or your chosen output device)
+4. **Speaker**: Keep as **"Multi-Output Device"** or your regular speakers
+5. **Make a test call**
+
+#### Step 5: Test
+
+1. **Keep Audio Hijack running** with "Start Hijacking" active
+2. **Launch your Meeting Assistant**: `uv run gui_app.py`
+3. **Enable "TTS to Mic"** in the GUI
+4. **Start transcription**
+5. **Join Teams test call**
+6. **Say something** → Should hear echo of your voice ✅
+7. **Say something in Russian** → Wait for translation → **Click "Speak to Mic"**
+8. **Should hear TTS echo** ✅
+
+#### Audio Hijack Troubleshooting
+
+**Can't Find Python App in Application List**
+- **First launch your Meeting Assistant app**: `uv run gui_app.py`
+- **Then create Audio Hijack session** - it should now appear
+- **Alternative**: Use **"System Audio"** to capture all audio (less precise but works)
+
+**No Audio in Teams**
+- Check that **"Start Hijacking"** is active (green)
+- Check the **levels** in Audio Hijack mixer - make sure not muted
+- **Restart Teams** after setting up Audio Hijack
+- Try using **ACE Loopback** instead of BlackHole
+
+**TTS Not Captured**
+- Make sure the **Application** block is set to the right Python process
+- Try using **"System Audio"** instead of specific application
+- Check that TTS audio is actually playing (you should hear it)
+
+**Audio Quality Issues**
+- In Audio Hijack, click **Recording** tab
+- Set **Quality** to **"Lossless"** or **"High"**
+- Set **Format** to **"WAV"** or **"AAC"** (not MP3)
+
+#### Important Notes About Audio Hijack
+
+**Free Trial Limitation**
+- ⏱️ **10-minute session limit** - audio gets watermarked after 10 minutes
+- 🔄 **Restart the session** to get another 10 minutes
+- ✅ **Unlimited testing** - you can test as many times as you want
+- 💰 **Purchase** ($64) if it works for you
+
+**Keep Audio Hijack Running**
+- ⚠️ **Audio Hijack must be running** for the audio routing to work
+- Keep it in the background during Teams calls
+- The session should show **"Hijacking..."** status
+
+**Alternative to BlackHole**
+Instead of BlackHole, Audio Hijack can create its own virtual devices:
+1. In Audio Hijack: **Audio Hijack** menu → **Install Loopback Driver**
+2. Use **"ACE Loopback"** as output device
+3. More reliable than BlackHole for this use case
+
+**Quick Setup Checklist**
+- [ ] Download and install Audio Hijack
+- [ ] Install ACE (Audio Capture Engine)
+- [ ] Restart Mac
+- [ ] Create new session with Mic + App Audio
+- [ ] Add Mixer and Output (ACE Loopback)
+- [ ] Start Hijacking
+- [ ] Configure Teams microphone to ACE Loopback
+- [ ] Launch Meeting Assistant app
+- [ ] Test with Teams test call
+- [ ] Verify both voice and TTS are heard
 
 ### Per-App Audio Routing (macOS)
 
