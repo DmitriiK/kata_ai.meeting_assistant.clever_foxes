@@ -7,22 +7,41 @@ private AI chat feature that allows users to query meeting transcript context.
 import os
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import prompts
+from llm_service import ChatMemoryManager, chat_with_memory
 
 
 class PrivateChatService:
-    """Service for managing private AI chat with transcript context."""
+    """Service for managing private AI chat with transcript context and conversation memory."""
     
-    def __init__(self, max_context_chars: int = 3000):
+    def __init__(self, max_context_chars: int = 3000, max_memory_turns: int = 10):
         """
         Initialize the chat service.
         
         Args:
             max_context_chars: Maximum characters to include in transcript context
+            max_memory_turns: Maximum conversation turns to keep in memory
         """
         self.max_context_chars = max_context_chars
         self.chat_history_filename = "private-chat-history.txt"
+        
+        # Initialize conversation memory manager
+        self.memory_manager = ChatMemoryManager(
+            max_memory_turns=max_memory_turns,
+            max_memory_age_hours=24
+        )
+        
+        # System context for the AI assistant
+        self.system_context = """You are an expert AI assistant with deep understanding of business conversations and general knowledge. 
+        You excel at:
+        - Extracting actionable insights, tracking decisions, and identifying key information from meeting transcripts
+        - Answering general questions on a wide range of topics
+        - Maintaining context from previous questions and referencing earlier parts of conversations
+        
+        When asked about meeting content, provide clear, structured, and actionable responses.
+        When asked general questions, provide helpful, accurate answers without unnecessary references to meeting context.
+        Always be concise and relevant to the specific question asked."""
     
     def get_question_text(self, question_type: str) -> str:
         """
@@ -94,6 +113,52 @@ class PrivateChatService:
             Formatted prompt string
         """
         return prompts.get_chat_prompt(question_type, custom_question, transcript_context)
+    
+    def chat_with_context(
+        self, 
+        question_type: str, 
+        question_text: str, 
+        transcript_context: str
+    ) -> str:
+        """
+        Process a chat question with conversation memory and transcript context.
+        
+        Args:
+            question_type: Type of question (e.g., 'last_said', 'custom')
+            question_text: The question text
+            transcript_context: Recent meeting transcript context
+        
+        Returns:
+            AI response string
+        """
+        # Enhanced system context that includes meeting transcript
+        enhanced_system_context = f"""{self.system_context}
+
+CURRENT MEETING TRANSCRIPT:
+{transcript_context}
+
+You have access to the above meeting transcript and conversation history. Answer questions based on this context when relevant, or provide general assistance when asked about topics outside the meeting."""
+        
+        # Use the new chat_with_memory function with proper Chat API structure
+        response = chat_with_memory(
+            user_message=question_text,  # Just the question, not a big prompt
+            memory_manager=self.memory_manager,
+            system_context=enhanced_system_context,
+            max_tokens=400,
+            temperature=0.7,
+            question_type=question_type
+        )
+        
+        return response
+    
+    def clear_conversation_memory(self):
+        """Clear the conversation memory for a fresh start."""
+        self.memory_manager.clear_memory()
+        print("🧹 Conversation memory cleared")
+    
+    def get_conversation_stats(self) -> Dict[str, Any]:
+        """Get statistics about the current conversation."""
+        return self.memory_manager.get_memory_stats()
     
     def save_to_history(
         self, 

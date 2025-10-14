@@ -599,6 +599,13 @@ class TranscriptionGUI(QMainWindow):
         )
         chat_layout.addWidget(self.chat_history_text)
         
+        # Memory status indicator
+        self.memory_status_label = QLabel("🧠 Memory: Ready")
+        self.memory_status_label.setStyleSheet(
+            "color: #666666; font-size: 10px; margin: 2px;"
+        )
+        chat_layout.addWidget(self.memory_status_label)
+        
         # Common questions buttons
         common_q_label = QLabel("Quick Questions:")
         common_q_label.setStyleSheet("font-weight: bold; margin-top: 5px;")
@@ -672,6 +679,13 @@ class TranscriptionGUI(QMainWindow):
         self.chat_clear_btn.setMinimumWidth(80)
         self.chat_clear_btn.clicked.connect(lambda: self.chat_input.clear())
         custom_layout.addWidget(self.chat_clear_btn)
+        
+        self.chat_memory_clear_btn = QPushButton("🧹 Clear Memory")
+        self.chat_memory_clear_btn.setMinimumHeight(30)
+        self.chat_memory_clear_btn.setMinimumWidth(120)
+        self.chat_memory_clear_btn.setToolTip("Clear conversation memory for a fresh start")
+        self.chat_memory_clear_btn.clicked.connect(self.clear_chat_memory)
+        custom_layout.addWidget(self.chat_memory_clear_btn)
         
         chat_layout.addLayout(custom_layout)
         self.chat_group.setLayout(chat_layout)
@@ -928,6 +942,9 @@ class TranscriptionGUI(QMainWindow):
         
         # Load private chat history
         self.load_session_chat_history(session_folder)
+        
+        # Update memory status
+        self.update_memory_status()
     
     def append_insight_to_display(self, insight_type: str, content: str):
         """Append a new insight to the appropriate display (thread-safe)."""
@@ -2020,13 +2037,10 @@ class TranscriptionGUI(QMainWindow):
                     
                     print(f"📋 Context length: {len(context)} chars")
                     
-                    # Generate prompt
-                    prompt = self.chat_service.generate_prompt(
+                    # Use new chat_with_context method with conversation memory
+                    answer = self.chat_service.chat_with_context(
                         question_type, question_text, context
                     )
-                    
-                    # Call LLM
-                    answer = llm_service.chat(prompt, max_tokens=400)
                     
                     if answer and not answer.startswith("Error:"):
                         # Emit signal with result
@@ -2099,6 +2113,9 @@ class TranscriptionGUI(QMainWindow):
         # Re-enable buttons
         self.signals.update_chat_buttons.emit(True)
         
+        # Update memory status
+        self.update_memory_status()
+        
         print(f"💬 Chat message appended to display")
     
     def update_chat_buttons(self, enabled: bool):
@@ -2135,6 +2152,54 @@ class TranscriptionGUI(QMainWindow):
             self.chat_history_text.setPlaceholderText(
                 "No chat history for this session."
             )
+    
+    def clear_chat_memory(self):
+        """Clear the conversation memory and show confirmation."""
+        reply = QMessageBox.question(
+            self, 
+            "Clear Conversation Memory",
+            "This will clear the AI's conversation memory, making it forget previous questions and answers in this session.\n\nContinue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.chat_service.clear_conversation_memory()
+            
+            # Show confirmation in chat display
+            self.chat_history_text.append(
+                f"\n{'=' * 60}\n"
+                f"🧹 Conversation memory cleared at {datetime.datetime.now().strftime('%H:%M:%S')}\n"
+                f"{'=' * 60}\n"
+            )
+            self.chat_history_text.moveCursor(QTextCursor.MoveOperation.End)
+            
+            print("🧹 Chat memory cleared by user")
+            
+            # Update memory status
+            self.update_memory_status()
+    
+    def update_memory_status(self):
+        """Update the memory status indicator."""
+        try:
+            stats = self.chat_service.get_conversation_stats()
+            total_messages = stats.get('total_messages', 0)
+            session_duration = stats.get('session_duration_minutes', 0)
+            
+            if total_messages == 0:
+                status_text = "🧠 Memory: Ready"
+                color = "#666666"
+            else:
+                status_text = f"🧠 Memory: {total_messages} messages ({session_duration:.1f}m)"
+                color = "#0066CC"
+            
+            self.memory_status_label.setText(status_text)
+            self.memory_status_label.setStyleSheet(f"color: {color}; font-size: 10px; margin: 2px;")
+            
+        except Exception as e:
+            print(f"⚠️ Error updating memory status: {e}")
+            self.memory_status_label.setText("🧠 Memory: Error")
+            self.memory_status_label.setStyleSheet("color: #CC0000; font-size: 10px; margin: 2px;")
     
     def closeEvent(self, event):
         """Handle window closing."""
