@@ -258,16 +258,40 @@ class AudioMixer:
                                 tts_chunk, dtype=np.int16
                             )
                             
-                            # Mix: average mic and TTS (prevents clipping)
-                            mixed_array = (
-                                stereo_array.astype(np.int32) +
-                                tts_array.astype(np.int32)
-                            ) // 2
-                            mixed_array = np.clip(
-                                mixed_array, -32768, 32767
-                            ).astype(np.int16)
+                            # Check if microphone has significant audio
+                            # Calculate RMS (root mean square) of mic audio
+                            mic_float = stereo_array.astype(np.float32)
+                            mic_rms = np.sqrt(np.mean(mic_float ** 2))
                             
-                            output_data = mixed_array.tobytes()
+                            # Threshold for "silence" (adjust if needed)
+                            # Typical background noise is < 500 RMS
+                            silence_threshold = 500
+                            
+                            if mic_rms < silence_threshold:
+                                # Mic is silent - use TTS at full volume
+                                # No mixing needed, just pass TTS through
+                                print(
+                                    f"🔊 TTS only (mic silent: "
+                                    f"RMS={mic_rms:.1f})"
+                                )
+                                output_data = tts_array.tobytes()
+                            else:
+                                # Mic has audio - mix with TTS
+                                # Use weighted average: 60% TTS, 40% mic
+                                # This ensures TTS is prominent
+                                print(
+                                    f"🎵 Mixing TTS+Mic (mic active: "
+                                    f"RMS={mic_rms:.1f})"
+                                )
+                                mixed_array = (
+                                    (tts_array.astype(np.int32) * 6 +
+                                     stereo_array.astype(np.int32) * 4)
+                                ) // 10
+                                mixed_array = np.clip(
+                                    mixed_array, -32768, 32767
+                                ).astype(np.int16)
+                                
+                                output_data = mixed_array.tobytes()
                         
                         elif self.is_tts_playing and len(self.tts_buffer) > 0:
                             # TTS buffer running out, pad with zeros
@@ -282,16 +306,25 @@ class AudioMixer:
                                 tts_padded, dtype=np.int16
                             )
                             
-                            # Mix
-                            mixed_array = (
-                                stereo_array.astype(np.int32) +
-                                tts_array.astype(np.int32)
-                            ) // 2
-                            mixed_array = np.clip(
-                                mixed_array, -32768, 32767
-                            ).astype(np.int16)
+                            # Check mic level
+                            mic_float = stereo_array.astype(np.float32)
+                            mic_rms = np.sqrt(np.mean(mic_float ** 2))
+                            silence_threshold = 500
                             
-                            output_data = mixed_array.tobytes()
+                            if mic_rms < silence_threshold:
+                                # Mic silent - use TTS at full volume
+                                output_data = tts_array.tobytes()
+                            else:
+                                # Mix with mic audio (60% TTS, 40% mic)
+                                mixed_array = (
+                                    (tts_array.astype(np.int32) * 6 +
+                                     stereo_array.astype(np.int32) * 4)
+                                ) // 10
+                                mixed_array = np.clip(
+                                    mixed_array, -32768, 32767
+                                ).astype(np.int16)
+                                
+                                output_data = mixed_array.tobytes()
                         
                         elif self.is_tts_playing and len(self.tts_buffer) == 0:
                             # TTS finished
@@ -343,6 +376,11 @@ class AudioMixer:
         with self.tts_lock:
             self.tts_buffer.extend(audio_data)
             self.is_tts_playing = True
+            print(
+                f"🎵 TTS QUEUED TO MIXER: {len(audio_data)} bytes "
+                f"(buffer now: {len(self.tts_buffer)} bytes, "
+                f"is_running={self.is_running})"
+            )
             logger.info(
                 f"🎵 TTS audio queued: {len(audio_data)} bytes "
                 f"(total buffer: {len(self.tts_buffer)} bytes)"
