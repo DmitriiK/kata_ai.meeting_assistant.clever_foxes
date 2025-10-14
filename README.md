@@ -131,12 +131,24 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 
 ### 💬 Private AI Chat
 
-**Interactive AI assistant with meeting context:**
+**Advanced conversational AI with memory and context awareness:**
+
+- **Conversation Memory** 🧠
+  - AI remembers previous questions and answers throughout the session
+  - Maintains context across multiple conversation turns (up to 10 turns)
+  - Can reference earlier parts of the conversation for better responses
+  - Memory automatically expires after 24 hours for privacy
 
 - **Live Transcript Context**
   - Ask questions about the ongoing meeting in real-time
   - AI analyzes recent conversation history (up to 3000 characters)
   - Understands speaker attribution and context
+  - Seamlessly integrates meeting transcript with conversation memory
+
+- **Dual-Mode Intelligence**
+  - **Meeting Mode**: Answers questions about meeting content with full context
+  - **General Mode**: Handles general knowledge questions without unnecessary meeting references
+  - Smart context switching based on question type
 
 - **Quick Question Buttons**
   - 📝 **Last Said** - What was just discussed?
@@ -148,23 +160,33 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
   - ✅ **Decisions** - What was decided?
 
 - **Custom Questions**
-  - Type any question about meeting content
-  - Natural language understanding
-  - Context-aware responses
+  - Type any question about meeting content or general topics
+  - Natural language understanding with conversation continuity
+  - Context-aware responses that build on previous exchanges
+  - Follow-up questions work naturally with conversation memory
+
+- **Memory Management**
+  - 🧹 **Clear Memory** button to reset conversation context
+  - Real-time memory status indicator showing conversation stats
+  - Automatic memory cleanup and optimization
+  - Session-based memory isolation
 
 - **Non-blocking Processing**
   - Questions processed in background threads
-  - UI stays responsive
+  - UI stays responsive during AI processing
   - Multiple questions can be queued
+  - Real-time memory status updates
 
 - **Persistent History**
   - All Q&A saved to `private-chat-history.txt` in session folder
-  - Review conversations later
-  - Timestamped question types
+  - Review conversations later with full context
+  - Timestamped question types and conversation flow
+  - Memory stats and session duration tracking
 
 - **Session History Review**
   - Browse chat history from past meetings
   - Search across multiple sessions
+  - View conversation patterns and insights
 
 ### 📊 Advanced Session Management
 
@@ -384,7 +406,7 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 | **GUI Application**      | `gui_app.py`                    | Cross-platform GUI with PyQt6        |
 | **Speech Transcriber**   | `azure_speech_service.py`       | Azure Speech Service integration     |
 | **Meeting Assistant**    | `meeting_assistant_service.py`  | AI analysis orchestration            |
-| **Private Chat Service** | `private_chat_service.py`       | Private AI chat with transcript context |
+| **Private Chat Service** | `private_chat_service.py`       | Conversational AI with memory and context |
 | **Summary Manager**      | `summary_manager.py`            | Session & file management            |
 | **Transcription Logger** | `transcription_logger.py`       | Enhanced logging with formatting     |
 | **Audio Recorder**       | `audio_recorder.py`             | Multi-device audio handling          |
@@ -392,7 +414,7 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 | **TTS Voice Manager**    | `tts_voice_manager.py`          | TTS voice configuration management   |
 | **TTS Audio Buffer**     | `tts_audio_buffer.py`           | Audio generation and buffering       |
 | **TTS Audio Router**     | `tts_audio_router.py`           | Virtual mic audio routing            |
-| **LLM Service**          | `llm_service.py`                | Azure OpenAI communication           |
+| **LLM Service**          | `llm_service.py`                | Azure OpenAI Chat API with memory management |
 | **Prompts**              | `prompts.py`                    | AI prompt templates                  |
 | **Configuration**        | `config.py`                     | Centralized settings                 |
 
@@ -405,6 +427,37 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 5. **Insight Generation** → Follow-up questions, key points, action items, decisions
 6. **Storage** → Insights saved to individual text files + comprehensive summaries
 7. **Display** → Real-time console/GUI output with visual formatting
+
+### Chat API Implementation
+
+**Advanced conversational AI with memory management:**
+
+1. **ChatMemoryManager** → Manages conversation history with automatic cleanup
+   - Maintains up to 10 conversation turns in memory
+   - Automatic expiration after 24 hours for privacy
+   - Thread-safe memory operations
+
+2. **Chat API Integration** → Uses Azure OpenAI Chat API (not Completions API)
+   - Proper message structure with system, user, and assistant roles
+   - Conversation context flows naturally through message history
+   - Enhanced system context with meeting transcript integration
+
+3. **Dual-Mode Intelligence** → Smart context switching
+   - **Meeting Mode**: References transcript context for meeting-related questions
+   - **General Mode**: Handles general knowledge without unnecessary meeting references
+   - Automatic mode detection based on question content
+
+4. **Memory Management** → Real-time memory control and monitoring
+   - Live memory status indicator in GUI
+   - Manual memory clearing with confirmation dialog
+   - Session-based memory isolation
+   - Memory statistics and usage tracking
+
+5. **Enhanced User Experience** → Improved conversation flow
+   - Natural follow-up questions with context continuity
+   - Non-blocking background processing
+   - Persistent conversation history with timestamps
+   - Real-time memory status updates
 
 ---
 
@@ -491,11 +544,11 @@ The AI Insights tab provides a comprehensive view of meeting intelligence with p
 
 #### 🤖 Private AI Chat Section
 
-**Located at the bottom of the Transcription tab**, the Private AI Chat provides instant answers about your meeting.
+**Located at the bottom of the Transcription tab**, the Private AI Chat provides intelligent conversational assistance with memory and context awareness.
 
 **How to Use:**
 
-1. **Start Transcription**: The chat interface appears automatically
+1. **Start Transcription**: The chat interface appears automatically with memory status indicator
 2. **Quick Questions**: Click any button for instant answers:
    - 📝 Last Said - What was just discussed?
    - 👤 Who Spoke - Who was the last speaker?
@@ -505,15 +558,25 @@ The AI Insights tab provides a comprehensive view of meeting intelligence with p
    - ➡️ Next Steps - What are the plans?
    - ✅ Decisions - What was decided?
 3. **Custom Questions**: Type any question in the text box and press Enter or click "Ask"
-4. **View History**: All questions and answers are saved and displayed in the chat window
-5. **Review Later**: Switch to past sessions to see their chat history
+   - Ask about meeting content: "What was the budget discussion about?"
+   - Ask general questions: "What's the capital of France?"
+   - Follow-up questions: "What about the timeline?" (AI remembers previous context)
+4. **Memory Management**: 
+   - View real-time memory status (🧠 Memory: X messages)
+   - Click "🧹 Clear Memory" to reset conversation context
+   - Memory automatically expires after 24 hours
+5. **View History**: All questions and answers are saved and displayed in the chat window
+6. **Review Later**: Switch to past sessions to see their chat history
 
-**Features:**
+**Advanced Features:**
 
-- ✅ **Context-Aware**: AI analyzes recent transcript automatically
+- ✅ **Conversation Memory**: AI remembers previous questions and builds context
+- ✅ **Dual-Mode Intelligence**: Handles both meeting and general questions appropriately
+- ✅ **Context-Aware**: AI analyzes recent transcript and conversation history
 - ✅ **Non-Blocking**: UI stays responsive while processing
-- ✅ **Persistent**: History saved to session folder
-- ✅ **Smart**: Understands meeting context and provides relevant answers
+- ✅ **Memory Management**: Real-time status and manual control
+- ✅ **Persistent**: History saved to session folder with conversation flow
+- ✅ **Smart Follow-ups**: Natural conversation continuity across questions
 
 ### Demo Mode (`demo.py`)
 
@@ -804,7 +867,7 @@ sessions/
 - Review conversations with the AI assistant
 - Not included in main meeting summary
 
-**Example `private-chat-history.txt`:**
+**Example `private-chat-history.txt` with conversation memory:**
 
 ```
 ============================================================
@@ -820,6 +883,31 @@ A: The team discussed finalizing the project timeline by next Friday.
 Q: Who is responsible for the budget proposal?
 
 A: Mike is responsible for preparing the budget proposal for Q4.
+
+============================================================
+[2025-10-11 14:28:45] [custom]
+============================================================
+Q: What about the timeline we just discussed?
+
+A: The timeline we discussed earlier needs to be finalized by next Friday. This aligns with Mike's budget proposal deadline for Q4.
+
+============================================================
+[2025-10-11 14:29:20] [custom]
+============================================================
+Q: What's the capital of France?
+
+A: The capital of France is Paris.
+
+============================================================
+[2025-10-11 14:30:10] [custom]
+============================================================
+Q: Going back to the meeting, what are the key deadlines?
+
+A: Based on our earlier discussion, the key deadlines are:
+1. Project timeline finalization: Next Friday
+2. Mike's Q4 budget proposal: Also due next Friday
+
+These deadlines appear to be coordinated for the same timeframe.
 ```
 
 ### Benefits of Session-Based Organization
@@ -1099,11 +1187,11 @@ kata_ai.meeting_assistant.clever_foxes/
 ├── prompts.py                   # AI prompt templates
 ├── azure_speech_service.py      # Azure Speech Service integration
 ├── meeting_assistant_service.py # AI analysis orchestration
-├── private_chat_service.py      # Private AI chat service
+├── private_chat_service.py      # Conversational AI with memory and context
 ├── summary_manager.py           # Session and file management
 ├── transcription_logger.py      # Enhanced logging
 ├── audio_recorder.py            # Audio device handling
-├── llm_service.py               # Azure OpenAI communication
+├── llm_service.py               # Azure OpenAI Chat API with memory management
 ├── vad_detector.py              # Voice Activity Detection (legacy)
 ├── pyproject.toml               # Dependencies (uv)
 ├── .env                         # Environment variables (create this)
