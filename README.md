@@ -32,14 +32,15 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
   - Direct Azure Speech Service integration with minimal delay
   - Continuous audio streaming for instant transcription
   - See results appear as you speak
-  
 - **Multi-language Support**
+
   - Auto-detects and switches between languages dynamically
   - Supports 100+ languages including English, Russian, Turkish, Spanish, Hungarian, Hindi, Hebrew
   - Configurable language sets (standard 3 languages or extended up to 30+ languages)
   - Custom language detection profiles
 
 - **Speaker Diarization**
+
   - Automatically identifies and distinguishes between multiple speakers
   - Labels speakers as "Speaker 0", "Speaker 1", etc.
   - Tracks who said what throughout the meeting
@@ -49,7 +50,6 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
   - Records both microphone (your voice) and system audio (meeting participants)
   - Captures audio from any meeting platform (Teams, Zoom, Telegram, etc.)
   - Virtual audio device support for system audio routing
-  
 - **Live Progress Indicators**
   - Interim results: See transcription in real-time as you speak (before phrase completion)
   - Visual feedback with color-coded displays (yellow for interim, green for final)
@@ -60,22 +60,26 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 **Near real-time oral translation from microphone with dynamic control:**
 
 - **LLM-Powered Translation**
+
   - Azure OpenAI GPT-4 for accurate, context-aware translations
   - Supports multiple language pairs (English ↔ Russian ↔ Turkish ↔ Spanish, etc.)
   - Natural, conversational translation style
 
 - **Text-to-Speech Integration**
+
   - Azure TTS with neural voices for natural-sounding speech
   - Automatic voice selection for target language
   - High-quality audio generation
 
 - **Virtual Microphone Routing**
+
   - Routes TTS audio directly to meeting app microphone input
   - Your peers hear translations as if you spoke them
   - Dual audio output: meeting app + your speakers (you hear it too)
   - Complete setup guide for virtual audio devices (BlackHole, VB-Cable, etc.)
 
 - **Dynamic On/Off Toggle**
+
   - Enable/disable translation mid-session without stopping transcription
   - Toggle TTS checkbox anytime during active meeting
   - Automatic buffer cleanup when disabled
@@ -85,7 +89,6 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
   - Manual trigger: press "Speak to Mic" button when ready
   - Can interrupt mid-playback with "Stop Speaking"
   - Non-blocking: UI stays responsive during generation
-  
 - **Translation Display**
   - Dedicated translation window with blue background color-coding
   - Timestamps for each translation
@@ -96,31 +99,37 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 **Automatic insight generation during meetings:**
 
 - **Smart Follow-up Questions**
+
   - AI automatically suggests relevant questions to clarify or expand on topics
   - Helps maintain meeting momentum
   - Identifies missing information or unclear points
 
 - **Key Points Extraction**
+
   - Identifies and highlights important information from conversations
   - Filters out small talk and focuses on substance
   - Real-time updates as discussion progresses
 
 - **Action Items Tracking**
+
   - Captures tasks, commitments, and assignments mentioned during meetings
   - Identifies responsible parties
   - Tracks deadlines and dependencies
 
 - **Decision Recording**
+
   - Automatically identifies and logs decisions made during discussions
   - Captures context around decision-making
   - Helps prevent decision drift
 
 - **Real-time Insights**
+
   - AI analysis saved to individual text files as they're generated
   - Separate files for each insight type (follow-up questions, key points, action items, decisions)
   - Timestamped entries for chronological tracking
 
 - **Meeting Summaries**
+
   - Generates comprehensive summaries with key outcomes and insights
   - Multiple export formats: JSON (data), Markdown (human-readable), text files
   - Includes statistics and metadata
@@ -134,23 +143,21 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 **Advanced conversational AI with memory and context awareness:**
 
 - **Conversation Memory** 🧠
+
   - AI remembers previous questions and answers throughout the session
   - Maintains context across multiple conversation turns (up to 10 turns)
   - Can reference earlier parts of the conversation for better responses
   - Memory automatically expires after 24 hours for privacy
 
 - **Live Transcript Context**
+
   - Ask questions about the ongoing meeting in real-time
   - AI analyzes recent conversation history (up to 3000 characters)
   - Understands speaker attribution and context
   - Seamlessly integrates meeting transcript with conversation memory
 
-- **Dual-Mode Intelligence**
-  - **Meeting Mode**: Answers questions about meeting content with full context
-  - **General Mode**: Handles general knowledge questions without unnecessary meeting references
-  - Smart context switching based on question type
-
 - **Quick Question Buttons**
+
   - 📝 **Last Said** - What was just discussed?
   - 👤 **Who Spoke** - Who was the last speaker?
   - 📋 **Action Items** - What tasks were mentioned?
@@ -160,24 +167,20 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
   - ✅ **Decisions** - What was decided?
 
 - **Custom Questions**
+
   - Type any question about meeting content or general topics
   - Natural language understanding with conversation continuity
   - Context-aware responses that build on previous exchanges
   - Follow-up questions work naturally with conversation memory
 
-- **Memory Management**
-  - 🧹 **Clear Memory** button to reset conversation context
-  - Real-time memory status indicator showing conversation stats
-  - Automatic memory cleanup and optimization
-  - Session-based memory isolation
-
 - **Non-blocking Processing**
+
   - Questions processed in background threads
   - UI stays responsive during AI processing
   - Multiple questions can be queued
-  - Real-time memory status updates
 
 - **Persistent History**
+
   - All Q&A saved to `private-chat-history.txt` in session folder
   - Review conversations later with full context
   - Timestamped question types and conversation flow
@@ -186,43 +189,49 @@ An intelligent meeting assistant that combines real-time transcription with AI-p
 - **Session History Review**
   - Browse chat history from past meetings
   - Search across multiple sessions
-  - View conversation patterns and insights
 
 ### 📊 Advanced Session Management
 
 **Comprehensive meeting organization and analytics:**
 
 - **Session-based Tracking**
+
   - Each meeting creates isolated folder with timestamp
   - Automatic organization by date and time
   - No conflicts between concurrent sessions
 
 - **Visual Insights Dashboard (GUI)**
+
   - Two-tab interface: Transcription + AI Insights
   - Color-coded insight sections with resizable panels
   - Real-time updates during active meetings
 
 - **Session History Browser (GUI)**
+
   - 🔴 LIVE Session button for current meeting
   - List all past meetings sorted by most recent
   - Session statistics: duration, insight counts, metadata
 
 - **Smart Date Filtering (GUI)**
+
   - Calendar picker to filter sessions by specific date
   - "All" button to show all sessions
   - Quick access to recent meetings
 
 - **Live vs. Historical View (GUI)**
+
   - Toggle between current meeting and past sessions
   - Seamless switching without losing context
   - Browse previous insights while in active meeting
 
 - **Auto-pause Feature**
+
   - Automatically pauses after configurable silence period (default: 60 seconds)
   - Saves Azure costs during breaks
   - Visual indication of pause state
 
 - **Multiple Export Formats**
+
   - JSON for programmatic access
   - Markdown for human-readable reports
   - Individual text files for each insight type
@@ -400,23 +409,23 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 
 ### Core Components
 
-| Component                | File                            | Purpose                              |
-| ------------------------ | ------------------------------- | ------------------------------------ |
-| **Main Application**     | `main.py`                       | Console-based orchestrator           |
-| **GUI Application**      | `gui_app.py`                    | Cross-platform GUI with PyQt6        |
-| **Speech Transcriber**   | `azure_speech_service.py`       | Azure Speech Service integration     |
-| **Meeting Assistant**    | `meeting_assistant_service.py`  | AI analysis orchestration            |
-| **Private Chat Service** | `private_chat_service.py`       | Conversational AI with memory and context |
-| **Summary Manager**      | `summary_manager.py`            | Session & file management            |
-| **Transcription Logger** | `transcription_logger.py`       | Enhanced logging with formatting     |
-| **Audio Recorder**       | `audio_recorder.py`             | Multi-device audio handling          |
-| **TTS Controller**       | `translation_tts_controller.py` | Translation TTS pipeline coordinator |
-| **TTS Voice Manager**    | `tts_voice_manager.py`          | TTS voice configuration management   |
-| **TTS Audio Buffer**     | `tts_audio_buffer.py`           | Audio generation and buffering       |
-| **TTS Audio Router**     | `tts_audio_router.py`           | Virtual mic audio routing            |
+| Component                | File                            | Purpose                                      |
+| ------------------------ | ------------------------------- | -------------------------------------------- |
+| **Main Application**     | `main.py`                       | Console-based orchestrator                   |
+| **GUI Application**      | `gui_app.py`                    | Cross-platform GUI with PyQt6                |
+| **Speech Transcriber**   | `azure_speech_service.py`       | Azure Speech Service integration             |
+| **Meeting Assistant**    | `meeting_assistant_service.py`  | AI analysis orchestration                    |
+| **Private Chat Service** | `private_chat_service.py`       | Conversational AI with memory and context    |
+| **Summary Manager**      | `summary_manager.py`            | Session & file management                    |
+| **Transcription Logger** | `transcription_logger.py`       | Enhanced logging with formatting             |
+| **Audio Recorder**       | `audio_recorder.py`             | Multi-device audio handling                  |
+| **TTS Controller**       | `translation_tts_controller.py` | Translation TTS pipeline coordinator         |
+| **TTS Voice Manager**    | `tts_voice_manager.py`          | TTS voice configuration management           |
+| **TTS Audio Buffer**     | `tts_audio_buffer.py`           | Audio generation and buffering               |
+| **TTS Audio Router**     | `tts_audio_router.py`           | Virtual mic audio routing                    |
 | **LLM Service**          | `llm_service.py`                | Azure OpenAI Chat API with memory management |
-| **Prompts**              | `prompts.py`                    | AI prompt templates                  |
-| **Configuration**        | `config.py`                     | Centralized settings                 |
+| **Prompts**              | `prompts.py`                    | AI prompt templates                          |
+| **Configuration**        | `config.py`                     | Centralized settings                         |
 
 ### AI Analysis Pipeline
 
@@ -427,37 +436,6 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 5. **Insight Generation** → Follow-up questions, key points, action items, decisions
 6. **Storage** → Insights saved to individual text files + comprehensive summaries
 7. **Display** → Real-time console/GUI output with visual formatting
-
-### Chat API Implementation
-
-**Advanced conversational AI with memory management:**
-
-1. **ChatMemoryManager** → Manages conversation history with automatic cleanup
-   - Maintains up to 10 conversation turns in memory
-   - Automatic expiration after 24 hours for privacy
-   - Thread-safe memory operations
-
-2. **Chat API Integration** → Uses Azure OpenAI Chat API (not Completions API)
-   - Proper message structure with system, user, and assistant roles
-   - Conversation context flows naturally through message history
-   - Enhanced system context with meeting transcript integration
-
-3. **Dual-Mode Intelligence** → Smart context switching
-   - **Meeting Mode**: References transcript context for meeting-related questions
-   - **General Mode**: Handles general knowledge without unnecessary meeting references
-   - Automatic mode detection based on question content
-
-4. **Memory Management** → Real-time memory control and monitoring
-   - Live memory status indicator in GUI
-   - Manual memory clearing with confirmation dialog
-   - Session-based memory isolation
-   - Memory statistics and usage tracking
-
-5. **Enhanced User Experience** → Improved conversation flow
-   - Natural follow-up questions with context continuity
-   - Non-blocking background processing
-   - Persistent conversation history with timestamps
-   - Real-time memory status updates
 
 ---
 
@@ -561,7 +539,7 @@ The AI Insights tab provides a comprehensive view of meeting intelligence with p
    - Ask about meeting content: "What was the budget discussion about?"
    - Ask general questions: "What's the capital of France?"
    - Follow-up questions: "What about the timeline?" (AI remembers previous context)
-4. **Memory Management**: 
+4. **Memory Management**:
    - View real-time memory status (🧠 Memory: X messages)
    - Click "🧹 Clear Memory" to reset conversation context
    - Memory automatically expires after 24 hours
@@ -576,7 +554,6 @@ The AI Insights tab provides a comprehensive view of meeting intelligence with p
 - ✅ **Non-Blocking**: UI stays responsive while processing
 - ✅ **Memory Management**: Real-time status and manual control
 - ✅ **Persistent**: History saved to session folder with conversation flow
-- ✅ **Smart Follow-ups**: Natural conversation continuity across questions
 
 ### Demo Mode (`demo.py`)
 
@@ -990,21 +967,24 @@ System Audio → Multi-Output → Speakers ✅ (you hear it)
 ### Meeting App Compatibility
 
 **Browser-based meetings (✅ Full Support):**
+
 - Microsoft Teams (Web)
 - Zoom (Web)
 - Google Meet
 - Any browser-based meeting platform
 
 **Desktop apps (⚠️ Limited - See Note Below):**
+
 - Microsoft Teams (Desktop)
 - Zoom (Desktop)
 - Discord
 - Slack
 - Telegram
 
-**⚠️ IMPORTANT:** Desktop meeting apps (Teams, Zoom) use **protected audio streams** that may prevent system audio capture with standard BlackHole/VB-Cable setup. 
+**⚠️ IMPORTANT:** Desktop meeting apps (Teams, Zoom) use **protected audio streams** that may prevent system audio capture with standard BlackHole/VB-Cable setup.
 
 **Solutions:**
+
 1. **Use browser versions** of meeting apps (Teams Web, Zoom Web) - Works perfectly ✅
 2. **Use Loopback** by Rogue Amoeba ($99) for app-specific audio routing - Professional solution ✅
 3. **Configure meeting app** to output to BlackHole directly - May lose audio in your speakers ⚠️
@@ -1014,6 +994,7 @@ System Audio → Multi-Output → Speakers ✅ (you hear it)
 **Why this happens:** Meeting apps prioritize audio quality and use exclusive hardware access, bypassing the system audio mixer that BlackHole captures from. Browser audio goes through the regular system mixer and works fine.
 
 **Configuration:**
+
 - Keep normal microphone in meeting app
 - Multi-Output handles routing at system level
 - For desktop apps, additional configuration may be needed (see guide)
