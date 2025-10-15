@@ -17,6 +17,14 @@ class AudioSettings:
     MIN_AUDIO_LENGTH = 1000  # Minimum audio bytes to attempt transcription
 
 
+# Voice Activity Detection Settings
+class VADSettings:
+    """Voice Activity Detection configuration."""
+    AGGRESSIVENESS = 3  # 0-3, higher = more aggressive filtering
+    FRAME_DURATION_MS = 30  # Frame duration in milliseconds (10, 20, or 30)
+    MIN_SPEECH_DURATION = 0.5  # Minimum speech duration in seconds
+
+
 # Logging Settings
 class LogSettings:
     """Logging and output configuration."""

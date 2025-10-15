@@ -6,9 +6,9 @@ Tests each component individually without requiring microphone input.
 
 import sys
 import os
-from audio_recorder import AudioRecorder
-from transcription_service import TranscriptionService
-from transcription_logger import TranscriptionLogger
+from services.audio.audio_recorder import AudioRecorder
+from services.speech_engine.stt.transcription_service import TranscriptionService
+from services.speech_engine.stt.transcription_logger import TranscriptionLogger
 
 
 def test_audio_recorder():

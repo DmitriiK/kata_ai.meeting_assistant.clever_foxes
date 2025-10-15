@@ -8,7 +8,7 @@ from threading import Thread, Event, Lock
 from typing import Optional
 import time
 import numpy as np
-from audio_mixer import get_mixer
+from services.audio.audio_mixer import get_mixer
 
 
 class TTSAudioRouter:
@@ -239,7 +239,7 @@ class TTSAudioRouter:
 
 # Test module
 if __name__ == "__main__":
-    from audio_mixer import start_mixer, stop_mixer
+    from services.audio.audio_mixer import start_mixer, stop_mixer
     
     print("🧪 Testing TTS Audio Router with Mixer\n")
     

@@ -21,13 +21,16 @@ class Voice:
 class TTSVoiceManager:
     """Manages TTS voices from YAML configuration."""
     
-    def __init__(self, config_path: str = "tts_voices.yml"):
+    def __init__(self, config_path: str = None):
         """
         Initialize voice manager.
         
         Args:
             config_path: Path to voices configuration file
         """
+        if config_path is None:
+            # Default to tts_voices.yml in the same directory as this file
+            config_path = Path(__file__).parent / "tts_voices.yml"
         self.config_path = Path(config_path)
         self.voices: Dict[str, Dict[str, Voice]] = {}
         self._load_voices()

@@ -8,8 +8,8 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-import prompts
-from llm_service import ChatMemoryManager, chat_with_memory
+from . import prompts
+from .llm_service import ChatMemoryManager, chat_with_memory
 
 
 class PrivateChatService:

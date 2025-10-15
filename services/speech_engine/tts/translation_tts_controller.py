@@ -5,8 +5,8 @@ Manages state and provides unified API for GUI.
 """
 from typing import Optional, Callable
 from threading import Lock
-from tts_audio_buffer import TTSAudioBuffer
-from tts_audio_router import TTSAudioRouter
+from .tts_audio_buffer import TTSAudioBuffer
+from .tts_audio_router import TTSAudioRouter
 
 
 class TranslationTTSController:

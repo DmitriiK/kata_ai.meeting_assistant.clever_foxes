@@ -171,7 +171,6 @@ Install VB-Cable or VoiceMeeter from [Required Software](#windows) section.
 ### Step 2: Configure VB-Cable
 
 **If you installed VB-Cable:**
-
 1. Right-click **Speaker icon** → **"Sounds"** → **"Recording"** tab
 2. Right-click **"CABLE Output"** → **"Set as Default Device"**
 3. Right-click **"CABLE Output"** → **"Properties"** → **"Listen"** tab

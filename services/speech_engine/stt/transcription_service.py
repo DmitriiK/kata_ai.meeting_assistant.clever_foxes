@@ -1,8 +1,8 @@
 """
 Hybrid transcription service combining VAD and Azure Speech Service.
 """
-from azure_speech_service import AzureSpeechTranscriber
-from vad_detector import VADDetector
+from ..azure_speech_service import AzureSpeechTranscriber
+from services.audio.vad_detector import VADDetector
 from typing import Optional
 
 

@@ -23,19 +23,19 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QDate
 from PyQt6.QtGui import QFont, QTextCursor, QColor, QIcon, QMovie, QPixmap
-from azure_speech_service import AzureSpeechTranscriber
-from transcription_logger import TranscriptionLogger
+from services.speech_engine.azure_speech_service import AzureSpeechTranscriber
+from services.speech_engine.stt.transcription_logger import TranscriptionLogger
 from config import AudioSettings, LogSettings, SessionSettings
-from audio_recorder import AudioRecorder
-from translation_tts_controller import TranslationTTSController
-from meeting_assistant_service import MeetingAssistantService
-import llm_service
-import prompts
+from services.audio.audio_recorder import AudioRecorder
+from services.speech_engine.tts.translation_tts_controller import TranslationTTSController
+from services.llm.meeting_assistant_service import MeetingAssistantService
+from services.llm import llm_service
+from services.llm import prompts
 from queue import Queue, Empty
-from audio_mixer import start_mixer, stop_mixer
+from services.audio.audio_mixer import start_mixer, stop_mixer
 from pathlib import Path
 import json
-from private_chat_service import PrivateChatService
+from services.llm.private_chat_service import PrivateChatService
 
 
 class SignalEmitter(QObject):

@@ -15,11 +15,11 @@ import signal
 import sys
 import pyaudio
 import time
-from azure_speech_service import AzureSpeechTranscriber
-from transcription_logger import TranscriptionLogger
+from services.speech_engine.azure_speech_service import AzureSpeechTranscriber
+from services.speech_engine.stt.transcription_logger import TranscriptionLogger
 from config import AudioSettings, LogSettings
-from audio_recorder import AudioRecorder
-from meeting_assistant_service import MeetingAssistantService
+from services.audio.audio_recorder import AudioRecorder
+from services.llm.meeting_assistant_service import MeetingAssistantService
 
 
 class StreamingTranscriptionApp:

@@ -10,8 +10,8 @@ import json
 from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
-from llm_service import chat
-from summary_manager import MeetingSummaryManager
+from .llm_service import chat
+from .summary_manager import MeetingSummaryManager
 from colorama import Fore, Back, Style, init
 
 # Initialize colorama for cross-platform colored output

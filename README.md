@@ -409,23 +409,49 @@ Summary files will be automatically saved in `sessions/session_YYYYMMDD_HHMMSS/`
 
 ### Core Components
 
-| Component                | File                            | Purpose                                      |
-| ------------------------ | ------------------------------- | -------------------------------------------- |
-| **Main Application**     | `main.py`                       | Console-based orchestrator                   |
-| **GUI Application**      | `gui_app.py`                    | Cross-platform GUI with PyQt6                |
-| **Speech Transcriber**   | `azure_speech_service.py`       | Azure Speech Service integration             |
-| **Meeting Assistant**    | `meeting_assistant_service.py`  | AI analysis orchestration                    |
-| **Private Chat Service** | `private_chat_service.py`       | Conversational AI with memory and context    |
-| **Summary Manager**      | `summary_manager.py`            | Session & file management                    |
-| **Transcription Logger** | `transcription_logger.py`       | Enhanced logging with formatting             |
-| **Audio Recorder**       | `audio_recorder.py`             | Multi-device audio handling                  |
-| **TTS Controller**       | `translation_tts_controller.py` | Translation TTS pipeline coordinator         |
-| **TTS Voice Manager**    | `tts_voice_manager.py`          | TTS voice configuration management           |
-| **TTS Audio Buffer**     | `tts_audio_buffer.py`           | Audio generation and buffering               |
-| **TTS Audio Router**     | `tts_audio_router.py`           | Virtual mic audio routing                    |
-| **LLM Service**          | `llm_service.py`                | Azure OpenAI Chat API with memory management |
-| **Prompts**              | `prompts.py`                    | AI prompt templates                          |
-| **Configuration**        | `config.py`                     | Centralized settings                         |
+<<<<<<< HEAD
+| Component                | File                                                     | Purpose                              |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------ |
+| **Main Application**     | `main.py`                                                | Console-based orchestrator           |
+| **GUI Application**      | `gui_app.py`                                             | Cross-platform GUI with PyQt6        |
+| **Speech Transcriber**   | `services/speech_engine/azure_speech_service.py`        | Azure Speech Service integration     |
+| **Meeting Assistant**    | `services/llm/meeting_assistant_service.py`             | AI analysis orchestration            |
+| **Private Chat Service** | `services/llm/private_chat_service.py`                  | Private AI chat with transcript context |
+| **Summary Manager**      | `services/llm/summary_manager.py`                       | Session & file management            |
+| **Transcription Logger** | `services/speech_engine/stt/transcription_logger.py`    | Enhanced logging with formatting     |
+| **Transcription Service**| `services/speech_engine/stt/transcription_service.py`   | Hybrid transcription with VAD        |
+| **Audio Recorder**       | `services/audio/audio_recorder.py`                      | Multi-device audio handling          |
+| **Audio Mixer**          | `services/audio/audio_mixer.py`                         | Real-time audio mixing for TTS       |
+| **VAD Detector**         | `services/audio/vad_detector.py`                        | Voice Activity Detection             |
+| **TTS Controller**       | `services/speech_engine/tts/translation_tts_controller.py` | Translation TTS pipeline coordinator |
+| **TTS Voice Manager**    | `services/speech_engine/tts/tts_voice_manager.py`       | TTS voice configuration management   |
+| **TTS Audio Buffer**     | `services/speech_engine/tts/tts_audio_buffer.py`        | Audio generation and buffering       |
+| **TTS Audio Router**     | `services/speech_engine/tts/tts_audio_router.py`        | Virtual mic audio routing            |
+| **LLM Service**          | `services/llm/llm_service.py`                           | Azure OpenAI communication           |
+| **Prompts**              | `services/llm/prompts.py`                               | AI prompt templates                  |
+| **Configuration**        | `config.py`                                              | Centralized settings                 |
+=======
+| Component                | File                                                     | Purpose                              |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------ |
+| **Main Application**     | `main.py`                                                | Console-based orchestrator           |
+| **GUI Application**      | `gui_app.py`                                             | Cross-platform GUI with PyQt6        |
+| **Speech Transcriber**   | `services/speech_engine/azure_speech_service.py`        | Azure Speech Service integration     |
+| **Meeting Assistant**    | `services/llm/meeting_assistant_service.py`             | AI analysis orchestration            |
+| **Private Chat Service** | `services/llm/private_chat_service.py`                  | Private AI chat with transcript context |
+| **Summary Manager**      | `services/llm/summary_manager.py`                       | Session & file management            |
+| **Transcription Logger** | `services/speech_engine/stt/transcription_logger.py`    | Enhanced logging with formatting     |
+| **Transcription Service**| `services/speech_engine/stt/transcription_service.py`   | Hybrid transcription with VAD        |
+| **Audio Recorder**       | `services/audio/audio_recorder.py`                      | Multi-device audio handling          |
+| **Audio Mixer**          | `services/audio/audio_mixer.py`                         | Real-time audio mixing for TTS       |
+| **VAD Detector**         | `services/audio/vad_detector.py`                        | Voice Activity Detection             |
+| **TTS Controller**       | `services/speech_engine/tts/translation_tts_controller.py` | Translation TTS pipeline coordinator |
+| **TTS Voice Manager**    | `services/speech_engine/tts/tts_voice_manager.py`       | TTS voice configuration management   |
+| **TTS Audio Buffer**     | `services/speech_engine/tts/tts_audio_buffer.py`        | Audio generation and buffering       |
+| **TTS Audio Router**     | `services/speech_engine/tts/tts_audio_router.py`        | Virtual mic audio routing            |
+| **LLM Service**          | `services/llm/llm_service.py`                           | Azure OpenAI communication           |
+| **Prompts**              | `services/llm/prompts.py`                               | AI prompt templates                  |
+| **Configuration**        | `config.py`                                              | Centralized settings                 |
+>>>>>>> e01e29b (re-orgranization of)
 
 ### AI Analysis Pipeline
 
@@ -1095,10 +1121,37 @@ python -c "from azure_speech_service import AzureSpeechTranscriber; AzureSpeechT
 
 - **Streaming First**: Direct Azure API integration for minimal latency
 - **Separation of Concerns**: Each component has single responsibility
+- **Modular Architecture**: Organized service packages by functionality
 - **Thread Safety**: Async processing with proper synchronization
 - **Cloud Native**: Leverages Azure services for scalability
 - **Session Isolation**: Complete separation between meetings
 - **Extensibility**: Easy to add new AI features or output formats
+
+### Module Organization
+
+The codebase is organized into logical service packages:
+
+**🎵 Audio Services (`services/audio/`)**
+- Audio capture, recording, and mixing functionality
+- Voice Activity Detection (VAD)
+- Real-time audio processing for TTS integration
+
+**🗣️ Speech Engine (`services/speech_engine/`)**
+- Azure Speech Service integration
+- **STT (Speech-to-Text)**: Transcription services and logging
+- **TTS (Text-to-Speech)**: Translation, voice management, and audio routing
+
+**🤖 LLM Services (`services/llm/`)**
+- Language model integration and AI analysis
+- Meeting assistance, private chat, and summary management
+- Prompt templates and conversation handling
+
+**Benefits of this structure:**
+- ✅ **Logical Grouping**: Related functionality organized together
+- ✅ **Dependency Management**: Clear separation of concerns
+- ✅ **Maintainability**: Easy to locate and modify specific features
+- ✅ **Scalability**: Simple to add new services within existing categories
+- ✅ **Testing**: Isolated modules are easier to test independently
 
 ### Technology Stack
 
@@ -1165,17 +1218,30 @@ kata_ai.meeting_assistant.clever_foxes/
 ├── gui_app.py                   # GUI application entry point
 ├── demo.py                      # Demo without audio input
 ├── config.py                    # Centralized configuration
-├── prompts.py                   # AI prompt templates
-├── azure_speech_service.py      # Azure Speech Service integration
-├── meeting_assistant_service.py # AI analysis orchestration
-├── private_chat_service.py      # Conversational AI with memory and context
-├── summary_manager.py           # Session and file management
-├── transcription_logger.py      # Enhanced logging
-├── audio_recorder.py            # Audio device handling
-├── llm_service.py               # Azure OpenAI Chat API with memory management
-├── vad_detector.py              # Voice Activity Detection (legacy)
 ├── pyproject.toml               # Dependencies (uv)
 ├── .env                         # Environment variables (create this)
+├── services/                    # Organized service modules
+│   ├── audio/                   # Audio processing services
+│   │   ├── audio_mixer.py       # Real-time audio mixing for TTS
+│   │   ├── audio_recorder.py    # Multi-device audio handling
+│   │   └── vad_detector.py      # Voice Activity Detection
+│   ├── speech_engine/           # Speech processing services
+│   │   ├── azure_speech_service.py  # Azure Speech Service integration
+│   │   ├── stt/                 # Speech-to-Text services
+│   │   │   ├── transcription_service.py   # Hybrid transcription with VAD
+│   │   │   └── transcription_logger.py    # Enhanced logging
+│   │   └── tts/                 # Text-to-Speech services
+│   │       ├── translation_tts_controller.py  # TTS pipeline coordinator
+│   │       ├── tts_audio_buffer.py           # Audio generation and buffering
+│   │       ├── tts_audio_router.py           # Virtual mic audio routing
+│   │       ├── tts_voice_manager.py          # Voice configuration management
+│   │       └── tts_voices.yml               # Voice configuration data
+│   └── llm/                     # Language Model services
+│       ├── llm_service.py       # Azure OpenAI communication
+│       ├── meeting_assistant_service.py  # AI analysis orchestration
+│       ├── private_chat_service.py       # Private AI chat service
+│       ├── prompts.py           # AI prompt templates
+│       └── summary_manager.py   # Session and file management
 ├── tests/                       # Test suite
 │   ├── test_llm_communicator.py
 │   └── test_meeting_assistant.py

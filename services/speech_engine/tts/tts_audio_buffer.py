@@ -7,7 +7,7 @@ import azure.cognitiveservices.speech as speechsdk
 from typing import Optional, Callable
 from threading import Lock, Thread
 from config import AzureSpeechService
-from tts_voice_manager import TTSVoiceManager
+from .tts_voice_manager import TTSVoiceManager
 
 
 class TTSAudioBuffer:
